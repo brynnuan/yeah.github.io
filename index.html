@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>心动笔记墙 - 轴视图美化版</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root { --bg-paper: #fcfaf2; }
+        body {
+            background-color: var(--bg-paper);
+            background-size: cover; background-position: center; background-repeat: no-repeat;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            overflow: hidden; height: 100dvh; display: flex; flex-direction: column;
+            position: fixed; width: 100%; transition: background 0.5s ease;
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0) rotate(var(--r)); }
+            50% { transform: translateY(-8px) rotate(var(--r)); }
+        }
+        .danmu-item {
+            position: absolute;
+            animation: float 4s ease-in-out infinite;
+            cursor: grab;
+            box-shadow: 2px 2px 0px rgba(0,0,0,0.05);
+            max-width: calc(100% - 40px);
+            min-width: 60px;
+            word-wrap: break-word;
+            z-index: 10;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+        }
+        .is-dragging {
+            animation: none !important; opacity: 0.8;
+            transform: scale(1.02) rotate(0deg) !important;
+            z-index: 1000 !important;
+        }
+        .archive-item-box {
+            position: absolute; left: 16px; bottom: 16px;
+            background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+            border: 2px dashed #cbd5e1 !important; color: #64748b;
+            transition: all 0.2s; z-index: 50; animation: none !important;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        .archive-item-box:active { transform: scale(0.95); background: #e2e8f0; }
+        
+        #detailCard { position: fixed; z-index: 1100; display: none; filter: drop-shadow(0 10px 15px rgba(0,0,0,0.1)); }
+        .glass-panel { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); }
+        #mainDisplay { flex: 1; position: relative; overflow: hidden; }
+        .footer-area { background: rgba(255,255,255,0.9); border-top: 1px solid rgba(0,0,0,0.05); z-index: 100; padding-bottom: max(12px, env(safe-area-inset-bottom)); }
+        .card-enter { animation: cardScale 0.2s ease-out forwards; }
+        @keyframes cardScale { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+        
+        #viewToggle { width: 44px !important; height: 44px !important; min-width: 44px !important; font-size: 14px; flex-shrink: 0; margin-right: 2px; }
+        
+        /* 核心优化：增强型颜色拾取器 */
+        .color-picker-wrapper {
+            position: relative;
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            border: 2px solid white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+            flex-shrink: 0;
+            overflow: hidden;
+            background: #000;
+        }
+        .color-picker-wrapper input[type="color"] {
+            position: absolute;
+            top: -5px; left: -5px;
+            width: 60px; height: 60px;
+            padding: 0; border: none;
+            cursor: pointer;
+            opacity: 0; /* 隐藏原生UI但保留交互层 */
+            z-index: 2;
+        }
+        .color-preview {
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+        }
+
+        .modal-container { width: 88vw; max-width: 320px; box-sizing: border-box; }
+        .modal-btn { height: 44px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; white-space: nowrap; }
+        
+        /* 轴视图代码 */
+        .timeline-container { position: relative; padding-left: 40px; }
+        .timeline-line { position: absolute; left: 20px; top: 0; bottom: 0; width: 1px; background: #e5e7eb; z-index: 0; }
+        .timeline-item { position: relative; margin-bottom: 32px; z-index: 1; }
+        .timeline-dot { position: absolute; left: -25px; top: 8px; width: 10px; height: 10px; background: #334155; border-radius: 50%; }
+        .timeline-bubble { background: #ffffff; border-radius: 18px; padding: 12px 20px; border: 1px solid #f1f5f9; box-shadow: 0 2px 8px rgba(0,0,0,0.03); display: inline-block; min-width: 80px; }
+        .timeline-header { font-size: 11px; color: #94a3b8; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; font-weight: 500; }
+        .timeline-content { font-size: 14px; color: #334155; line-height: 1.5; }
+        .timeline-date-label { font-size: 12px; color: #94a3b8; font-weight: bold; margin-bottom: 24px; padding-left: 10px; position: relative; }
+        .timeline-date-label::before { content: ''; position: absolute; left: 0; right: 0; top: 50%; border-top: 1px solid #f1f5f9; z-index: -1; }
+
+        .archive-list { max-height: 40vh; overflow-y: auto; }
+        .archive-list-item { border-bottom: 1px solid #f1f5f9; padding: 10px 0; }
+        .restore-btn { font-size: 10px; font-weight: bold; color: #3b82f6; background: #eff6ff; padding: 4px 8px; border-radius: 6px; }
+
+        .bg-preset-box {
+            width: 44px; height: 44px; border-radius: 12px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+            border: 1px solid rgba(0,0,0,0.05);
+            transition: transform 0.2s; flex-shrink: 0;
+        }
+        .bg-preset-box:active { transform: scale(0.9); }
+    </style>
+</head>
+<body id="bodyRoot">
+
+    <header id="headerBar" class="p-3 glass-panel border-b flex flex-col gap-2 shrink-0">
+        <div class="flex items-center gap-2 flex-nowrap w-full">
+            <input type="text" id="searchInput" placeholder="搜索关键词..." class="min-w-0 flex-1 px-4 py-2.5 rounded-full border border-gray-200 text-sm outline-none bg-white/50 focus:bg-white transition-all">
+            <button id="viewToggle" class="bg-white border border-gray-100 rounded-full font-bold active:scale-90 shadow-sm flex items-center justify-center text-slate-700 w-11 h-11 shrink-0">轴</button>
+        </div>
+        <div id="searchStats" class="px-2 flex items-center justify-between text-[10px] text-gray-400 font-medium">
+            <div class="flex items-center gap-1 bg-gray-50/50 px-2 py-0.5 rounded-full border border-gray-100">关键词: <span id="statKeyword" class="text-slate-600">全部</span></div>
+            <div class="flex items-center gap-1 bg-slate-50/50 px-2 py-0.5 rounded-full border border-slate-100 text-slate-500">已记录: <span id="statCount" class="font-bold text-slate-800">0</span>次</div>
+        </div>
+    </header>
+
+    <main id="mainDisplay">
+        <div id="danmuWall" class="w-full h-full relative"></div>
+        <div id="timelineWall" class="w-full h-full overflow-y-auto hidden pb-24 px-6 pt-6"></div>
+    </main>
+
+    <div id="bgSettingsModal" class="fixed inset-0 bg-black/60 z-[4000] hidden flex items-center justify-center p-6" onclick="closeBgSettings()">
+        <div class="bg-white rounded-[2.5rem] p-7 shadow-2xl card-enter modal-container" onclick="event.stopPropagation()">
+            <h3 class="font-bold text-slate-800 mb-6 text-center text-sm">🎨 背景设定</h3>
+            <div class="flex justify-between items-center mb-8 px-1">
+                <button onclick="setQuickBg('#fcfaf2')" class="bg-preset-box bg-[#fcfaf2]"></button>
+                <button onclick="setQuickBg('#f1f5f9')" class="bg-preset-box bg-[#f1f5f9]"></button>
+                <button onclick="setQuickBg('#fee2e2')" class="bg-preset-box bg-[#fee2e2]"></button>
+                <button onclick="setQuickBg('#dcfce7')" class="bg-preset-box bg-[#dcfce7]"></button>
+                <button onclick="setQuickBg('#dbeafe')" class="bg-preset-box bg-[#dbeafe]"></button>
+            </div>
+            <div class="space-y-6">
+                <div class="flex items-center gap-3 bg-gray-50 p-2.5 rounded-2xl border border-gray-100">
+                    <div class="color-picker-wrapper">
+                        <div id="bgPreview" class="color-preview" style="background: #000;"></div>
+                        <input type="color" oninput="setQuickBg(this.value); document.getElementById('bgPreview').style.background=this.value;">
+                    </div>
+                    <div class="h-6 w-[1px] bg-gray-200"></div>
+                    <input type="text" id="bgInput" placeholder="URL或颜色代码" class="flex-1 bg-transparent text-xs outline-none text-slate-600 font-mono">
+                </div>
+                <div class="flex gap-3 pt-2">
+                    <button onclick="resetBg()" class="modal-btn flex-1 bg-gray-100 text-slate-400 rounded-2xl text-xs font-bold active:scale-95">还原</button>
+                    <button onclick="applyBg()" class="modal-btn flex-1 bg-slate-800 text-white rounded-2xl text-xs font-bold shadow-lg active:scale-95">完成</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="danmuStyleModal" class="fixed inset-0 bg-black/60 z-[4000] hidden flex items-center justify-center p-6" onclick="closeDanmuStyle()">
+        <div class="bg-white rounded-[2rem] p-6 shadow-2xl card-enter modal-container" onclick="event.stopPropagation()">
+            <h3 class="font-bold text-slate-800 mb-5 text-center text-sm">🎞️ 样式实验室</h3>
+            <div class="space-y-6">
+                <div class="flex items-center justify-around px-2 bg-gray-50 py-4 rounded-2xl border border-gray-100/50">
+                    <div class="flex flex-col items-center gap-2">
+                        <span class="text-[10px] font-bold text-slate-400">文字颜色</span>
+                        <div class="color-picker-wrapper">
+                            <div id="textPreview" class="color-preview"></div>
+                            <input type="color" id="styleTextColor" oninput="document.getElementById('textPreview').style.background=this.value">
+                        </div>
+                    </div>
+                    <div class="h-10 w-[1px] bg-gray-200"></div>
+                    <div class="flex flex-col items-center gap-2">
+                        <span class="text-[10px] font-bold text-slate-400">背景色</span>
+                        <div class="color-picker-wrapper">
+                            <div id="danmuBgPreview" class="color-preview"></div>
+                            <input type="color" id="styleBgColor" oninput="document.getElementById('danmuBgPreview').style.background=this.value">
+                        </div>
+                    </div>
+                </div>
+                <div class="px-2">
+                    <div class="flex justify-between mb-3"><span class="text-[11px] font-bold text-slate-600">边框粗细</span><span id="borderValDisplay" class="text-[11px] font-mono text-slate-400">1.5px</span></div>
+                    <input type="range" id="styleBorderSize" min="0" max="5" step="0.5" value="1.5" class="w-full h-1.5 bg-gray-100 rounded-lg appearance-none accent-slate-800" oninput="document.getElementById('borderValDisplay').innerText=this.value+'px'">
+                </div>
+                <div class="flex gap-3 pt-1">
+                    <button onclick="resetDanmuStyle()" class="modal-btn flex-1 bg-gray-100 text-slate-400 rounded-2xl text-xs font-bold active:scale-95">默认</button>
+                    <button onclick="saveStyleSettings()" class="modal-btn flex-1 bg-slate-800 text-white rounded-2xl text-xs font-bold shadow-lg active:scale-95">确定</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="archiveModal" class="fixed inset-0 bg-black/60 z-[5000] hidden flex items-center justify-center p-6" onclick="closeArchive()">
+        <div class="bg-white rounded-[2rem] p-6 shadow-2xl card-enter modal-container" onclick="event.stopPropagation()">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-bold text-slate-800 text-sm">📦 归纳箱明细</h3>
+                <button onclick="showConfirmModal()" class="text-[10px] text-red-400 font-bold px-2 py-1 bg-red-50 rounded-lg">彻底删除</button>
+            </div>
+            <div id="archiveList" class="archive-list no-scrollbar"></div>
+            <button onclick="closeArchive()" class="modal-btn w-full mt-4 bg-slate-800 text-white rounded-2xl text-xs font-bold shadow-lg active:scale-95">关闭详情</button>
+        </div>
+    </div>
+
+    <div id="confirmModal" class="fixed inset-0 bg-black/40 z-[6000] hidden flex items-center justify-center p-6 backdrop-blur-sm" onclick="closeConfirmModal()">
+        <div class="bg-white rounded-[2.5rem] p-8 shadow-2xl card-enter modal-container" onclick="event.stopPropagation()">
+            <div class="w-12 h-12 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4"><span class="text-xl">⚠️</span></div>
+            <h3 class="text-center font-bold text-slate-800 mb-2">确认永久删除？</h3>
+            <p class="text-center text-[11px] text-slate-400 mb-6 leading-relaxed">此操作将清空归纳箱内所有记录，<br>删除后将无法找回。</p>
+            <div class="flex gap-3">
+                <button onclick="closeConfirmModal()" class="modal-btn flex-1 bg-gray-100 text-slate-500 rounded-2xl text-xs font-bold active:scale-95">再想想</button>
+                <button onclick="clearAllArchived()" class="modal-btn flex-1 bg-red-500 text-white rounded-2xl text-xs font-bold shadow-lg active:scale-95">确认清空</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="detailCard" class="bg-white rounded-2xl border shadow-2xl p-4 w-64 card-enter">
+        <div id="detailContent" class="text-sm text-slate-700 leading-relaxed break-words font-medium mb-3"></div>
+        <div class="flex items-center justify-between border-t border-gray-50 pt-3 text-[10px] text-slate-400">
+            <span id="detailLoc" class="font-bold truncate max-w-[100px]">📍 地点</span>
+            <div class="flex items-center gap-2 font-mono"><span id="detailDate"></span><span id="detailTime"></span></div>
+        </div>
+        <div class="mt-3 flex justify-end">
+            <button onclick="document.getElementById('detailCard').style.display='none'" class="text-[10px] text-blue-500 font-bold px-4 py-1.5 bg-blue-50 rounded-lg active:scale-95">知道了</button>
+        </div>
+    </div>
+
+    <footer id="footerBar" class="footer-area shadow-2xl">
+        <div class="flex items-center justify-between px-4 py-1 text-[10px] text-gray-400">
+            <div class="flex items-center gap-1">📍 <input type="text" id="locInput" value="此刻的心里" class="bg-transparent border-none outline-none font-bold text-slate-500" style="width:100px;"></div>
+            <div id="dateDisplay" class="font-mono"></div>
+        </div>
+        <div class="px-4 pb-2 pt-1 flex items-center gap-3">
+            <textarea id="noteInput" rows="1" maxlength="100" placeholder="此刻的心情(100字内)..." class="flex-1 bg-gray-50 px-3 py-2 rounded-xl border border-gray-100 text-sm resize-none h-10 outline-none"></textarea>
+            <button id="submitBtn" class="bg-slate-800 text-white w-10 h-10 rounded-full flex items-center justify-center shadow-lg active:scale-90 shrink-0">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" /></svg>
+            </button>
+        </div>
+    </footer>
+
+    <script>
+        let notes = JSON.parse(localStorage.getItem('fave_notes_v12')) || [];
+        let viewMode = 'wall';
+        let currentLaboratoryStyle = JSON.parse(localStorage.getItem('fave_lab_style_v12')) || { text: '#334155', bg: '#ffffff', border: 1.5 };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initLabUI(); initBg(); render(); updateDateDisplay();
+            document.getElementById('submitBtn').onclick = handleSend;
+            document.getElementById('viewToggle').onclick = toggleView;
+            document.getElementById('searchInput').oninput = render;
+            
+            let btnTimer;
+            const sBtn = document.getElementById('submitBtn');
+            const start = () => btnTimer = setTimeout(() => document.getElementById('danmuStyleModal').classList.remove('hidden'), 800);
+            const stop = () => clearTimeout(btnTimer);
+            sBtn.onmousedown = start; sBtn.ontouchstart = start;
+            sBtn.onmouseup = stop; sBtn.ontouchend = stop;
+        });
+
+        function showConfirmModal() { document.getElementById('confirmModal').classList.remove('hidden'); }
+        function closeConfirmModal() { document.getElementById('confirmModal').classList.add('hidden'); }
+        
+        function clearAllArchived() {
+            notes = notes.filter(n => !n.isArchived);
+            saveAndRender();
+            closeConfirmModal();
+            openArchive();
+        }
+
+        function openArchive() {
+            const list = document.getElementById('archiveList');
+            const archived = notes.filter(n => n.isArchived);
+            list.innerHTML = archived.length ? '' : '<div class="text-center text-xs text-gray-400 py-8">箱子里是空的...</div>';
+            archived.forEach(note => {
+                const item = document.createElement('div');
+                item.className = 'archive-list-item flex justify-between items-center gap-3';
+                item.innerHTML = `<div class="flex-1 min-w-0"><div class="text-[11px] text-slate-700 truncate">${note.content}</div><div class="text-[8px] text-slate-400 font-mono">${new Date(note.timestamp).toLocaleString()}</div></div><button onclick="restoreNote('${note.id}')" class="restore-btn">还原</button>`;
+                list.appendChild(item);
+            });
+            document.getElementById('archiveModal').classList.remove('hidden');
+        }
+
+        function restoreNote(id) {
+            const note = notes.find(n => n.id === id);
+            if(note) {
+                note.isArchived = false;
+                note.x = window.innerWidth / 2 - 50; note.y = window.innerHeight / 2 - 50;
+                saveAndRender(); openArchive();
+            }
+        }
+        function closeArchive() { document.getElementById('archiveModal').classList.add('hidden'); }
+
+        function initLabUI() {
+            const s = currentLaboratoryStyle;
+            document.getElementById('styleTextColor').value = s.text;
+            document.getElementById('styleBgColor').value = s.bg;
+            document.getElementById('textPreview').style.background = s.text;
+            document.getElementById('danmuBgPreview').style.background = s.bg;
+            document.getElementById('styleBorderSize').value = s.border;
+            document.getElementById('borderValDisplay').innerText = s.border + 'px';
+        }
+
+        function saveStyleSettings() {
+            currentLaboratoryStyle = { 
+                text: document.getElementById('styleTextColor').value, 
+                bg: document.getElementById('styleBgColor').value, 
+                border: document.getElementById('styleBorderSize').value 
+            };
+            localStorage.setItem('fave_lab_style_v12', JSON.stringify(currentLaboratoryStyle));
+            closeDanmuStyle(); render();
+        }
+
+        function resetDanmuStyle() { 
+            currentLaboratoryStyle = { text: '#334155', bg: '#ffffff', border: 1.5 }; 
+            initLabUI(); localStorage.setItem('fave_lab_style_v12', JSON.stringify(currentLaboratoryStyle)); 
+            closeDanmuStyle(); render();
+        }
+
+        function closeDanmuStyle() { document.getElementById('danmuStyleModal').classList.add('hidden'); }
+
+        function initBg() { 
+            const savedBg = localStorage.getItem('fave_bg_v12') || '#fcfaf2'; 
+            applyBgStyle(savedBg);
+            document.getElementById('bgPreview').style.background = savedBg.startsWith('http') ? '#eee' : savedBg;
+        }
+
+        function setQuickBg(color) { 
+            document.getElementById('bgInput').value = color; 
+            document.getElementById('bgPreview').style.background = color;
+            applyBgStyle(color); 
+        }
+
+        function applyBg() { 
+            const val = document.getElementById('bgInput').value.trim(); 
+            if (val) { applyBgStyle(val); localStorage.setItem('fave_bg_v12', val); } 
+            closeBgSettings(); 
+        }
+
+        function resetBg() { applyBgStyle('#fcfaf2'); localStorage.removeItem('fave_bg_v12'); closeBgSettings(); }
+        function closeBgSettings() { document.getElementById('bgSettingsModal').classList.add('hidden'); }
+        
+        function applyBgStyle(val) {
+            const body = document.getElementById('bodyRoot');
+            if (val.startsWith('http')) { body.style.backgroundImage = `url('${val}')`; body.style.backgroundColor = 'transparent'; }
+            else { body.style.backgroundImage = 'none'; body.style.backgroundColor = val; }
+        }
+
+        function handleSend() {
+            const input = document.getElementById('noteInput'), content = input.value.trim();
+            const loc = document.getElementById('locInput').value.trim() || "此刻的心里";
+            if(!content) return;
+            notes.unshift({ id: 'n_' + Date.now(), content: content, timestamp: Date.now(), addr: loc, isArchived: false, style: {...currentLaboratoryStyle} });
+            saveAndRender(); input.value = '';
+        }
+
+        function render() {
+            const kwd = document.getElementById('searchInput').value.trim();
+            const wall = document.getElementById('danmuWall'), timeline = document.getElementById('timelineWall');
+            let unarchived = notes.filter(n => !n.isArchived && n.content.toLowerCase().includes(kwd.toLowerCase()));
+            document.getElementById('statCount').innerText = unarchived.length;
+            
+            wall.innerHTML = ''; timeline.innerHTML = '';
+            
+            if(viewMode === 'wall') {
+                wall.classList.remove('hidden'); timeline.classList.add('hidden');
+                unarchived.forEach(note => {
+                    const el = document.createElement('div');
+                    const s = note.style || { text: '#334155', bg: '#ffffff', border: 1.5 };
+                    el.className = `danmu-item px-4 py-2 border rounded-2xl text-xs font-medium`;
+                    el.style.backgroundColor = s.bg + 'ee'; el.style.color = s.text;
+                    el.style.borderWidth = s.border + 'px'; el.style.borderColor = s.text;
+                    el.style.left = (note.x || 20) + 'px'; el.style.top = (note.y || Math.random()*(window.innerHeight-300)+100) + 'px';
+                    el.style.setProperty('--r', `${(Math.random() * 4 - 2).toFixed(1)}deg`);
+                    el.innerText = note.content;
+                    bindInteraction(el, note);
+                    wall.appendChild(el);
+                });
+                addArchiveBox(notes.filter(n => n.isArchived).length);
+            } else {
+                wall.classList.add('hidden'); timeline.classList.remove('hidden');
+                const container = document.createElement('div');
+                container.className = 'timeline-container';
+                const line = document.createElement('div');
+                line.className = 'timeline-line';
+                container.appendChild(line);
+                let lastDate = "";
+                unarchived.sort((a,b) => b.timestamp - a.timestamp).forEach(note => {
+                    const d = new Date(note.timestamp);
+                    const dateStr = `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;
+                    if(dateStr !== lastDate) {
+                        const dateLabel = document.createElement('div');
+                        dateLabel.className = 'timeline-date-label';
+                        dateLabel.innerText = dateStr;
+                        container.appendChild(dateLabel);
+                        lastDate = dateStr;
+                    }
+                    const item = document.createElement('div');
+                    item.className = "timeline-item";
+                    item.innerHTML = `<div class="timeline-dot"></div><div class="timeline-header"><span>${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}</span><span>📍 ${note.addr}</span></div><div class="timeline-bubble"><div class="timeline-content">${note.content}</div></div>`;
+                    container.appendChild(item);
+                });
+                timeline.appendChild(container);
+            }
+        }
+
+        function addArchiveBox(count) {
+            const el = document.createElement('div');
+            el.className = 'archive-item-box px-4 py-2 rounded-full text-[11px] font-bold flex items-center gap-2';
+            el.innerHTML = `<span>📦</span><span>归纳箱</span><span class="bg-slate-200 px-1.5 py-0.5 rounded-full text-[10px]">${count}</span>`;
+            el.onclick = openArchive;
+            document.getElementById('danmuWall').appendChild(el);
+        }
+
+        function bindInteraction(el, note) {
+            let isMoving = false, startX, startY, initialX, initialY;
+            const onStart = (e) => {
+                const t = e.touches ? e.touches[0] : e;
+                startX = t.clientX; startY = t.clientY; initialX = el.offsetLeft; initialY = el.offsetTop;
+                document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onEnd);
+                document.addEventListener('touchmove', onMove, { passive: false }); document.addEventListener('touchend', onEnd);
+            };
+            const onMove = (e) => {
+                const t = e.touches ? e.touches[0] : e;
+                const dx = t.clientX - startX, dy = t.clientY - startY;
+                if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+                    if (!isMoving) { isMoving = true; el.classList.add('is-dragging'); }
+                    el.style.left = (initialX + dx) + 'px'; el.style.top = (initialY + dy) + 'px';
+                }
+            };
+            const onEnd = (e) => {
+                document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onEnd);
+                document.removeEventListener('touchmove', onMove); document.removeEventListener('touchend', onEnd);
+                if (isMoving) { 
+                    el.classList.remove('is-dragging'); note.x = el.offsetLeft; note.y = el.offsetTop; 
+                    const archiveBox = document.querySelector('.archive-item-box');
+                    if(archiveBox) {
+                        const rect = archiveBox.getBoundingClientRect();
+                        const t = e.changedTouches ? e.changedTouches[0] : e;
+                        if(t.clientX > rect.left && t.clientX < rect.right && t.clientY > rect.top && t.clientY < rect.bottom) {
+                            note.isArchived = true; saveAndRender(); return;
+                        }
+                    }
+                    saveToLocal(); 
+                } else { showDetailCard(e.clientX || e.changedTouches[0].clientX, e.clientY || e.changedTouches[0].clientY, note); }
+            };
+            el.addEventListener('mousedown', onStart); el.addEventListener('touchstart', onStart, { passive: false });
+        }
+
+        function showDetailCard(x, y, note) {
+            const card = document.getElementById('detailCard'), d = new Date(note.timestamp);
+            document.getElementById('detailLoc').innerText = `📍 ${note.addr}`;
+            document.getElementById('detailDate').innerText = d.toLocaleDateString();
+            document.getElementById('detailTime').innerText = d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+            document.getElementById('detailContent').innerText = note.content;
+            card.style.display = 'block'; card.style.left = Math.min(Math.max(10, x - 128), window.innerWidth - 270) + 'px';
+            card.style.top = (y < 200 ? y + 20 : y - 180) + 'px';
+        }
+
+        function toggleView() { viewMode = viewMode === 'wall' ? 'timeline' : 'wall'; document.getElementById('viewToggle').innerText = viewMode === 'wall' ? '轴' : '墙'; render(); }
+        function updateDateDisplay() { const now = new Date(); document.getElementById('dateDisplay').innerText = `${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')}`; }
+        function saveToLocal() { localStorage.setItem('fave_notes_v12', JSON.stringify(notes)); }
+        function saveAndRender() { saveToLocal(); render(); }
+        
+        let bgTimer;
+        const main = document.getElementById('mainDisplay');
+        const bgStart = (e) => { if(e.target.id==='danmuWall') bgTimer = setTimeout(() => document.getElementById('bgSettingsModal').classList.remove('hidden'), 800); };
+        main.onmousedown = bgStart; main.ontouchstart = bgStart;
+        main.onmouseup = () => clearTimeout(bgTimer); main.ontouchend = () => clearTimeout(bgTimer);
+    </script>
+</body>
+</html>
