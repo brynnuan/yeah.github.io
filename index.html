@@ -54,7 +54,6 @@
         
         #viewToggle { width: 44px !important; height: 44px !important; min-width: 44px !important; font-size: 14px; flex-shrink: 0; margin-right: 2px; }
         
-        /* 核心优化：增强型颜色拾取器 */
         .color-picker-wrapper {
             position: relative;
             width: 40px;
@@ -72,19 +71,14 @@
             width: 60px; height: 60px;
             padding: 0; border: none;
             cursor: pointer;
-            opacity: 0; /* 隐藏原生UI但保留交互层 */
+            opacity: 0;
             z-index: 2;
         }
-        .color-preview {
-            position: absolute;
-            inset: 0;
-            z-index: 1;
-        }
+        .color-preview { position: absolute; inset: 0; z-index: 1; }
 
         .modal-container { width: 88vw; max-width: 320px; box-sizing: border-box; }
         .modal-btn { height: 44px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; white-space: nowrap; }
         
-        /* 轴视图代码 */
         .timeline-container { position: relative; padding-left: 40px; }
         .timeline-line { position: absolute; left: 20px; top: 0; bottom: 0; width: 1px; background: #e5e7eb; z-index: 0; }
         .timeline-item { position: relative; margin-bottom: 32px; z-index: 1; }
@@ -240,12 +234,23 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             initLabUI(); initBg(); render(); updateDateDisplay();
-            document.getElementById('submitBtn').onclick = handleSend;
+            
+            const nInput = document.getElementById('noteInput');
+            const sBtn = document.getElementById('submitBtn');
+
+            sBtn.onclick = handleSend;
             document.getElementById('viewToggle').onclick = toggleView;
             document.getElementById('searchInput').oninput = render;
+
+            // 回车发送功能（Shift+回车换行）
+            nInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSend();
+                }
+            });
             
             let btnTimer;
-            const sBtn = document.getElementById('submitBtn');
             const start = () => btnTimer = setTimeout(() => document.getElementById('danmuStyleModal').classList.remove('hidden'), 800);
             const stop = () => clearTimeout(btnTimer);
             sBtn.onmousedown = start; sBtn.ontouchstart = start;
