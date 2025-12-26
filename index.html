@@ -223,13 +223,32 @@
     </footer>
 
     <script>
-        let notes = JSON.parse(localStorage.getItem('fave_notes_v12')) || [];
+        // --- 1. 核心数据初始化 ---
+        const defaultNotes = [
+            { id: 'def_1', content: '欢迎来到你的个人自留地 ⛱️', timestamp: Date.now(), addr: '光阴深处', isArchived: false, style: { text: '#ffffff', bg: '#1e293b', border: 2 }, x: 50, y: 120 },
+            { id: 'def_2', content: '长按发送按钮可以开启样式实验室 ✨', timestamp: Date.now() - 10000, addr: '新手村', isArchived: false, style: { text: '#3b82f6', bg: '#eff6ff', border: 1.5 }, x: 80, y: 220 },
+            { id: 'def_3', content: '拖动我到左下角可以归档哦 📦', timestamp: Date.now() - 20000, addr: '小贴士', isArchived: false, style: { text: '#ec4899', bg: '#fdf2f8', border: 1.5 }, x: 40, y: 320 }
+
+        ];
+
+        let localData = JSON.parse(localStorage.getItem('fave_notes_v12')) || [];
+        let notes;
+        
+        // 逻辑：如果本地没有数据，加载示例；如果有数据，检查是否包含示例ID，没有则合进去
+        if (localData.length === 0) {
+            notes = defaultNotes;
+        } else {
+            const hasDefault = localData.some(n => n.id.startsWith('def_'));
+            notes = hasDefault ? localData : [...defaultNotes, ...localData];
+        }
+
         let viewMode = 'wall';
         let linePos = 'center';
         let currentLaboratoryStyle = JSON.parse(localStorage.getItem('fave_lab_style_v12')) || { text: '#334155', bg: '#ffffff', border: 1.5 };
         let labTarget = 'text';
         let bgColorPicker, labColorPicker;
 
+        // --- 2. 交互逻辑 ---
         function isInvalidPosition(x, y) {
             const mainRect = document.getElementById('mainDisplay').getBoundingClientRect();
             return (y < mainRect.top + 15 || y > mainRect.bottom - 15 || x < mainRect.left + 15 || x > mainRect.right - 15);
@@ -255,10 +274,7 @@
                 const t = e.touches ? e.touches[0] : e; const dx = t.clientX - startX, dy = t.clientY - startY;
                 if (Math.abs(dx) > 5 || Math.abs(dy) > 5) { 
                     if (!isMoving) { isMoving = true; el.classList.add('is-dragging'); } 
-                    let targetX = initialX + dx;
-                    let targetY = initialY + dy;
-                    el.style.left = targetX + 'px'; 
-                    el.style.top = targetY + 'px'; 
+                    el.style.left = (initialX + dx) + 'px'; el.style.top = (initialY + dy) + 'px'; 
                     const rect = el.getBoundingClientRect();
                     if (isInvalidPosition(rect.left + rect.width / 2, rect.top + rect.height / 2)) { document.body.classList.add('show-warning'); } else { document.body.classList.remove('show-warning'); }
                     const box = document.getElementById('archiveTarget');
@@ -277,9 +293,7 @@
                         el.style.left = newPos.x + 'px'; el.style.top = newPos.y + 'px';
                         note.x = newPos.x; note.y = newPos.y;
                     } else { 
-                        if(el.offsetLeft + el.offsetWidth > window.innerWidth - 10) {
-                           el.style.left = (window.innerWidth - el.offsetWidth - 10) + 'px';
-                        }
+                        if(el.offsetLeft + el.offsetWidth > window.innerWidth - 10) el.style.left = (window.innerWidth - el.offsetWidth - 10) + 'px';
                         note.x = el.offsetLeft; note.y = el.offsetTop; 
                     }
                     const box = document.getElementById('archiveTarget');
@@ -290,57 +304,7 @@
             el.addEventListener('mousedown', onStart); el.addEventListener('touchstart', onStart, { passive: false });
         }
 
-        async function captureFullScreenshot() {
-            const kwd = document.getElementById('searchInput').value.trim();
-            const filtered = notes.filter(n => !n.isArchived && n.content.toLowerCase().includes(kwd.toLowerCase()));
-            if(filtered.length === 0) { alert("没有可截图的内容"); return; }
-            const btn = event.target;
-            btn.innerText = "生成中...";
-            const offScreenContainer = document.createElement('div');
-            offScreenContainer.style.width = '400px';
-            offScreenContainer.style.background = '#ffffff';
-            offScreenContainer.style.padding = '20px';
-            offScreenContainer.style.position = 'fixed';
-            offScreenContainer.style.left = '-10000px';
-            offScreenContainer.innerHTML = `<div style="font-weight: bold; font-size: 18px; margin-bottom: 20px; color: #334155;">记录列表</div>` + filtered.map(note => `<div style="border-bottom: 1px solid #f1f5f9; padding: 12px 0;"><div style="font-size: 14px; color: #1e293b; margin-bottom: 4px;">${note.content}</div><div style="font-size: 10px; color: #94a3b8; display: flex; justify-content: space-between;"><span>📍 ${note.addr}</span><span>${new Date(note.timestamp).toLocaleString()}</span></div></div>`).join('');
-            document.body.appendChild(offScreenContainer);
-            try {
-                const canvas = await html2canvas(offScreenContainer, { backgroundColor: "#ffffff", scale: 2, useCORS: true });
-                const link = document.createElement('a');
-                link.download = `我的记录_${Date.now()}.png`;
-                link.href = canvas.toDataURL("image/png");
-                link.click();
-            } catch (err) { console.error("截图失败", err); } finally { document.body.removeChild(offScreenContainer); btn.innerText = "截图"; }
-        }
-
-        function downloadTXT() {
-            const kwd = document.getElementById('searchInput').value.trim();
-            const filtered = notes.filter(n => !n.isArchived && n.content.toLowerCase().includes(kwd.toLowerCase()));
-            const textLines = filtered.map(n => {
-                const cleanContent = n.content.replace(/^[\r\n\s]+/, '').trim();
-                return `[${new Date(n.timestamp).toLocaleString()}] @${n.addr}: ${cleanContent}`;
-            });
-            const finalText = textLines.join('\n').trim();
-            if (!finalText) return;
-            const blob = new Blob([finalText], { type: 'text/plain' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `我的记录_${Date.now()}.txt`;
-            document.body.appendChild(a); 
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        }
-
-        function initPickers() {
-            bgColorPicker = new iro.ColorPicker("#bgPicker", { width: 180, color: localStorage.getItem('fave_bg_v12') || "#fcfaf2" });
-            bgColorPicker.on('color:change', (color) => { document.getElementById('bgInput').value = color.hexString; applyBgStyle(color.hexString); });
-            labColorPicker = new iro.ColorPicker("#labPicker", { width: 180, color: currentLaboratoryStyle.text });
-            labColorPicker.on('color:change', (color) => { if(labTarget === 'text') { document.getElementById('textPreview').style.backgroundColor = color.hexString; } else { document.getElementById('danmuBgPreview').style.backgroundColor = color.hexString; } });
-        }
-        function switchLabTarget(target) { labTarget = target; document.getElementById('textPreviewItem').classList.toggle('active', target === 'text'); document.getElementById('bgPreviewItem').classList.toggle('active', target === 'bg'); labColorPicker.setColor(target === 'text' ? document.getElementById('textPreview').style.backgroundColor : document.getElementById('danmuBgPreview').style.backgroundColor); }
-        function handleSend() { const input = document.getElementById('noteInput'), content = input.value.trim(); const loc = document.getElementById('locInput').value.trim() || "此刻的心里"; if(!content) return; const pos = getRandomPos(); notes.unshift({ id: 'n_' + Date.now(), content, timestamp: Date.now(), addr: loc, isArchived: false, style: JSON.parse(JSON.stringify(currentLaboratoryStyle)), x: pos.x, y: pos.y }); saveAndRender(); input.value = ''; }
+        // --- 3. 渲染与功能逻辑 ---
         function render() {
             const kwd = document.getElementById('searchInput').value.trim();
             document.getElementById('statKeyword').innerText = kwd || "全部";
@@ -348,9 +312,25 @@
             let filtered = notes.filter(n => !n.isArchived && n.content.toLowerCase().includes(kwd.toLowerCase()));
             document.getElementById('statCount').innerText = filtered.length;
             wall.innerHTML = ''; timeline.innerHTML = '';
+
             if(viewMode === 'wall') {
                 wall.classList.remove('hidden'); timeline.classList.add('hidden'); pSel.classList.add('hidden');
-                filtered.forEach(note => { const el = document.createElement('div'); const s = note.style || { text: '#334155', bg: '#ffffff', border: 1.5 }; el.className = `danmu-item px-4 py-2 border rounded-2xl text-xs font-medium`; el.style.backgroundColor = s.bg; el.style.color = s.text; el.style.borderWidth = s.border + 'px'; el.style.borderColor = s.text; el.style.left = (note.x || 50) + 'px'; el.style.top = (note.y || 150) + 'px'; el.innerText = note.content; bindInteraction(el, note); wall.appendChild(el); });
+                filtered.forEach(note => {
+                    const el = document.createElement('div');
+                    const s = note.style || { text: '#334155', bg: '#ffffff', border: 1.5 };
+                    el.className = `danmu-item px-4 py-2 border rounded-2xl text-xs font-medium`;
+                    el.style.backgroundColor = s.bg; el.style.color = s.text; el.style.borderWidth = s.border + 'px'; el.style.borderColor = s.text;
+                    
+                    // 防丢失逻辑：如果坐标在下方被遮挡，修正显示位置
+                    let safeY = note.y || 150;
+                    if (safeY > window.innerHeight * 0.75) safeY = 150 + Math.random() * 200;
+                    
+                    el.style.left = (note.x || 50) + 'px';
+                    el.style.top = safeY + 'px';
+                    el.innerText = note.content;
+                    bindInteraction(el, note);
+                    wall.appendChild(el);
+                });
                 addArchiveBox(notes.filter(n => n.isArchived).length);
             } else {
                 wall.classList.add('hidden'); timeline.classList.remove('hidden'); pSel.classList.remove('hidden');
@@ -358,10 +338,14 @@
                 let lastDate = ""; let itemIndex = 0; filtered.sort((a,b) => b.timestamp - a.timestamp).forEach((note) => { const d = new Date(note.timestamp); const dateStr = `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日`; if(dateStr !== lastDate) { const dateGroup = document.createElement('div'); dateGroup.className = 'timeline-date-group'; dateGroup.innerHTML = `<div class="timeline-date-label">${dateStr}</div>`; container.appendChild(dateGroup); lastDate = dateStr; itemIndex = 0; } const item = document.createElement('div'); let sideClass = ''; if(linePos === 'center') { sideClass = (itemIndex % 2 === 0 ? 'timeline-item-left' : 'timeline-item-right'); } item.className = `timeline-item ${sideClass}`; const timeStr = `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`; item.innerHTML = `<div class="timeline-dot"></div><div class="timeline-bubble" onclick="showDetailCardFromTimeline(event, '${note.id}')"><div class="timeline-content">${note.content}</div></div><div class="timeline-info"><span>${timeStr}</span><span>📍</span><span>${note.addr}</span></div>`; container.appendChild(item); itemIndex++; }); timeline.appendChild(container);
             }
         }
-        function openExport() { const list = document.getElementById('exportList'); const kwd = document.getElementById('searchInput').value.trim(); const filtered = notes.filter(n => !n.isArchived && n.content.toLowerCase().includes(kwd.toLowerCase())); list.innerHTML = filtered.length ? '' : '<div class="text-center text-xs text-gray-400 py-8">暂无匹配记录...</div>'; filtered.forEach(note => { const item = document.createElement('div'); item.className = 'archive-list-item'; item.innerHTML = `<div class="text-[11px] text-slate-700 leading-snug">${note.content}</div><div class="text-[8px] text-slate-400 font-mono mt-1 flex justify-between"><span>📍 ${note.addr}</span><span>${new Date(note.timestamp).toLocaleString()}</span></div>`; list.appendChild(item); }); document.getElementById('exportModal').classList.remove('hidden'); }
-        function closeExport() { document.getElementById('exportModal').classList.add('hidden'); }
-        function setLinePos(pos) { linePos = pos; document.querySelectorAll('.pos-btn').forEach(btn => btn.classList.remove('active')); document.getElementById(`btnPos${pos.charAt(0).toUpperCase() + pos.slice(1)}`).classList.add('active'); render(); }
+
+        // --- 基础功能函数 (保持不变) ---
+        function saveToLocal() { localStorage.setItem('fave_notes_v12', JSON.stringify(notes)); }
+        function saveAndRender() { saveToLocal(); render(); }
+        function handleSend() { const input = document.getElementById('noteInput'), content = input.value.trim(); const loc = document.getElementById('locInput').value.trim() || "此刻的心里"; if(!content) return; const pos = getRandomPos(); notes.unshift({ id: 'n_' + Date.now(), content, timestamp: Date.now(), addr: loc, isArchived: false, style: JSON.parse(JSON.stringify(currentLaboratoryStyle)), x: pos.x, y: pos.y }); saveAndRender(); input.value = ''; }
         function toggleView() { viewMode = viewMode === 'wall' ? 'timeline' : 'wall'; document.getElementById('viewToggle').innerText = viewMode === 'wall' ? '轴' : '墙'; render(); }
+        function setLinePos(pos) { linePos = pos; document.querySelectorAll('.pos-btn').forEach(btn => btn.classList.remove('active')); document.getElementById(`btnPos${pos.charAt(0).toUpperCase() + pos.slice(1)}`).classList.add('active'); render(); }
+        function showDetailCard(x, y, note) { const card = document.getElementById('detailCard'), d = new Date(note.timestamp); document.getElementById('detailLoc').innerText = `📍 ${note.addr}`; document.getElementById('detailDate').innerText = d.toLocaleDateString(); document.getElementById('detailTime').innerText = d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}); document.getElementById('detailContent').innerText = note.content; card.style.display = 'block'; card.style.left = Math.min(Math.max(10, x - 128), window.innerWidth - 270) + 'px'; card.style.top = (y < 200 ? y + 20 : y - 180) + 'px'; }
         function showDetailCardFromTimeline(e, id) { const note = notes.find(n => n.id === id); if(note) showDetailCard(e.clientX, e.clientY, note); }
         function addArchiveBox(count) { const el = document.createElement('div'); el.id = 'archiveTarget'; el.className = 'archive-item-box px-4 py-2 rounded-full text-[11px] font-bold flex items-center gap-2'; el.innerHTML = `<span>📦</span><span>归档</span><span class="bg-slate-200 px-1.5 py-0.5 rounded-full text-[10px]">${count}</span>`; el.onclick = openArchive; document.getElementById('danmuWall').appendChild(el); }
         function openArchive() { const list = document.getElementById('archiveList'), archived = notes.filter(n => n.isArchived); list.innerHTML = archived.length ? '' : '<div class="text-center text-xs text-gray-400 py-8">拖拽弹幕至此归档...</div>'; archived.forEach(note => { const item = document.createElement('div'); item.className = 'archive-list-item flex justify-between items-center gap-3'; item.innerHTML = `<div class="flex-1 min-w-0"><div class="text-[11px] text-slate-700 truncate">${note.content}</div><div class="text-[8px] text-slate-400 font-mono">${new Date(note.timestamp).toLocaleString()}</div></div><button onclick="restoreNote('${note.id}')" class="restore-btn">还原</button>`; list.appendChild(item); }); document.getElementById('archiveModal').classList.remove('hidden'); }
@@ -370,23 +354,42 @@
         function closeConfirmModal() { document.getElementById('confirmModal').classList.add('hidden'); }
         function clearAllArchived() { notes = notes.filter(n => !n.isArchived); saveAndRender(); closeConfirmModal(); closeArchive(); }
         function closeArchive() { document.getElementById('archiveModal').classList.add('hidden'); }
-        function initLabUI() { const s = currentLaboratoryStyle; document.getElementById('textPreview').style.backgroundColor = s.text; document.getElementById('danmuBgPreview').style.backgroundColor = s.bg; document.getElementById('styleBorderSize').value = s.border; document.getElementById('borderValDisplay').innerText = s.border + 'px'; }
-        function saveStyleSettings() { currentLaboratoryStyle = { text: document.getElementById('textPreview').style.backgroundColor, bg: document.getElementById('danmuBgPreview').style.backgroundColor, border: parseFloat(document.getElementById('styleBorderSize').value) }; localStorage.setItem('fave_lab_style_v12', JSON.stringify(currentLaboratoryStyle)); closeDanmuStyle(); render(); }
-        function resetDanmuStyle() { currentLaboratoryStyle = { text: '#334155', bg: '#ffffff', border: 1.5 }; initLabUI(); saveStyleSettings(); }
-        function closeDanmuStyle() { document.getElementById('danmuStyleModal').classList.add('hidden'); }
+        function closeExport() { document.getElementById('exportModal').classList.add('hidden'); }
+        function openExport() { const list = document.getElementById('exportList'); const kwd = document.getElementById('searchInput').value.trim(); const filtered = notes.filter(n => !n.isArchived && n.content.toLowerCase().includes(kwd.toLowerCase())); list.innerHTML = filtered.length ? '' : '<div class="text-center text-xs text-gray-400 py-8">暂无匹配记录...</div>'; filtered.forEach(note => { const item = document.createElement('div'); item.className = 'archive-list-item'; item.innerHTML = `<div class="text-[11px] text-slate-700 leading-snug">${note.content}</div><div class="text-[8px] text-slate-400 font-mono mt-1 flex justify-between"><span>📍 ${note.addr}</span><span>${new Date(note.timestamp).toLocaleString()}</span></div>`; list.appendChild(item); }); document.getElementById('exportModal').classList.remove('hidden'); }
         function initBg() { const savedBg = localStorage.getItem('fave_bg_v12') || '#fcfaf2'; applyBgStyle(savedBg); document.getElementById('bgInput').value = savedBg; }
         function applyBg() { const val = document.getElementById('bgInput').value.trim(); if (val) { applyBgStyle(val); localStorage.setItem('fave_bg_v12', val); } closeBgSettings(); }
         function resetBg() { applyBgStyle('#fcfaf2'); localStorage.removeItem('fave_bg_v12'); closeBgSettings(); }
         function closeBgSettings() { document.getElementById('bgSettingsModal').classList.add('hidden'); }
         function applyBgStyle(val) { const body = document.getElementById('bodyRoot'); if (val.startsWith('http')) { body.style.backgroundImage = `url('${val}')`; body.style.backgroundColor = 'transparent'; } else { body.style.backgroundImage = 'none'; body.style.backgroundColor = val; } }
-        function showDetailCard(x, y, note) { const card = document.getElementById('detailCard'), d = new Date(note.timestamp); document.getElementById('detailLoc').innerText = `📍 ${note.addr}`; document.getElementById('detailDate').innerText = d.toLocaleDateString(); document.getElementById('detailTime').innerText = d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}); document.getElementById('detailContent').innerText = note.content; card.style.display = 'block'; card.style.left = Math.min(Math.max(10, x - 128), window.innerWidth - 270) + 'px'; card.style.top = (y < 200 ? y + 20 : y - 180) + 'px'; }
+        function initLabUI() { const s = currentLaboratoryStyle; document.getElementById('textPreview').style.backgroundColor = s.text; document.getElementById('danmuBgPreview').style.backgroundColor = s.bg; document.getElementById('styleBorderSize').value = s.border; document.getElementById('borderValDisplay').innerText = s.border + 'px'; }
+        function saveStyleSettings() { currentLaboratoryStyle = { text: document.getElementById('textPreview').style.backgroundColor, bg: document.getElementById('danmuBgPreview').style.backgroundColor, border: parseFloat(document.getElementById('styleBorderSize').value) }; localStorage.setItem('fave_lab_style_v12', JSON.stringify(currentLaboratoryStyle)); closeDanmuStyle(); render(); }
+        function resetDanmuStyle() { currentLaboratoryStyle = { text: '#334155', bg: '#ffffff', border: 1.5 }; initLabUI(); saveStyleSettings(); }
+        function closeDanmuStyle() { document.getElementById('danmuStyleModal').classList.add('hidden'); }
+        function switchLabTarget(target) { labTarget = target; document.getElementById('textPreviewItem').classList.toggle('active', target === 'text'); document.getElementById('bgPreviewItem').classList.toggle('active', target === 'bg'); labColorPicker.setColor(target === 'text' ? document.getElementById('textPreview').style.backgroundColor : document.getElementById('danmuBgPreview').style.backgroundColor); }
+        async function captureFullScreenshot() { const kwd = document.getElementById('searchInput').value.trim(); const filtered = notes.filter(n => !n.isArchived && n.content.toLowerCase().includes(kwd.toLowerCase())); if(filtered.length === 0) return; const btn = event.target; btn.innerText = "生成中..."; const offScreenContainer = document.createElement('div'); offScreenContainer.style.width = '400px'; offScreenContainer.style.background = '#ffffff'; offScreenContainer.style.padding = '20px'; offScreenContainer.style.position = 'fixed'; offScreenContainer.style.left = '-10000px'; offScreenContainer.innerHTML = `<div style="font-weight: bold; font-size: 18px; margin-bottom: 20px;">记录列表</div>` + filtered.map(note => `<div style="border-bottom: 1px solid #f1f5f9; padding: 12px 0;"><div style="font-size: 14px; margin-bottom: 4px;">${note.content}</div><div style="font-size: 10px; color: #94a3b8; display: flex; justify-content: space-between;"><span>📍 ${note.addr}</span><span>${new Date(note.timestamp).toLocaleString()}</span></div></div>`).join(''); document.body.appendChild(offScreenContainer); try { const canvas = await html2canvas(offScreenContainer, { backgroundColor: "#ffffff", scale: 2 }); const link = document.createElement('a'); link.download = `记录_${Date.now()}.png`; link.href = canvas.toDataURL(); link.click(); } catch (err) {} finally { document.body.removeChild(offScreenContainer); btn.innerText = "截图"; } }
+        function downloadTXT() { const kwd = document.getElementById('searchInput').value.trim(); const filtered = notes.filter(n => !n.isArchived && n.content.toLowerCase().includes(kwd.toLowerCase())); const text = filtered.map(n => `[${new Date(n.timestamp).toLocaleString()}] @${n.addr}: ${n.content}`).join('\n'); if (!text) return; const blob = new Blob([text], { type: 'text/plain' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `记录_${Date.now()}.txt`; a.click(); }
         function updateDateDisplay() { const now = new Date(); document.getElementById('dateDisplay').innerText = `${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')}`; }
-        function saveToLocal() { localStorage.setItem('fave_notes_v12', JSON.stringify(notes)); }
-        function saveAndRender() { saveToLocal(); render(); }
-        let bgTimer;
+        function initPickers() { bgColorPicker = new iro.ColorPicker("#bgPicker", { width: 180, color: localStorage.getItem('fave_bg_v12') || "#fcfaf2" }); bgColorPicker.on('color:change', (color) => { document.getElementById('bgInput').value = color.hexString; applyBgStyle(color.hexString); }); labColorPicker = new iro.ColorPicker("#labPicker", { width: 180, color: currentLaboratoryStyle.text }); labColorPicker.on('color:change', (color) => { if(labTarget === 'text') document.getElementById('textPreview').style.backgroundColor = color.hexString; else document.getElementById('danmuBgPreview').style.backgroundColor = color.hexString; }); }
+
+        // --- 4. 事件绑定 ---
         const main = document.getElementById('mainDisplay');
-        const handleBgStart = (e) => { const isItem = e.target.closest('.danmu-item') || e.target.closest('.timeline-bubble') || e.target.closest('.archive-item-box') || e.target.closest('.pos-selector') || e.target.closest('.modal-container') || e.target.closest('.archive-list-item'); if(!isItem) bgTimer = setTimeout(() => document.getElementById('bgSettingsModal').classList.remove('hidden'), 800); };
-        document.addEventListener('DOMContentLoaded', () => { initPickers(); initLabUI(); initBg(); render(); updateDateDisplay(); const nInput = document.getElementById('noteInput'); const sBtn = document.getElementById('submitBtn'); sBtn.onclick = handleSend; document.getElementById('viewToggle').onclick = toggleView; document.getElementById('searchInput').oninput = render; nInput.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }); main.onmousedown = handleBgStart; main.ontouchstart = handleBgStart; main.onmouseup = () => clearTimeout(bgTimer); main.ontouchend = () => clearTimeout(bgTimer); let btnTimer; const startLab = () => btnTimer = setTimeout(() => document.getElementById('danmuStyleModal').classList.remove('hidden'), 800); sBtn.onmousedown = startLab; sBtn.ontouchstart = startLab; sBtn.onmouseup = () => clearTimeout(btnTimer); sBtn.ontouchend = () => clearTimeout(btnTimer); });
+        let bgTimer;
+        const handleBgStart = (e) => { const isItem = e.target.closest('.danmu-item, .timeline-bubble, .archive-item-box, .pos-selector, .modal-container, .archive-list-item'); if(!isItem) bgTimer = setTimeout(() => document.getElementById('bgSettingsModal').classList.remove('hidden'), 800); };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initPickers(); initLabUI(); initBg(); render(); updateDateDisplay();
+            const sBtn = document.getElementById('submitBtn'), nInput = document.getElementById('noteInput');
+            sBtn.onclick = handleSend;
+            document.getElementById('viewToggle').onclick = toggleView;
+            document.getElementById('searchInput').oninput = render;
+            nInput.onkeydown = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } };
+            main.onmousedown = handleBgStart; main.ontouchstart = handleBgStart;
+            main.onmouseup = () => clearTimeout(bgTimer); main.ontouchend = () => clearTimeout(bgTimer);
+            let btnTimer;
+            const startLab = () => btnTimer = setTimeout(() => document.getElementById('danmuStyleModal').classList.remove('hidden'), 800);
+            sBtn.onmousedown = startLab; sBtn.ontouchstart = startLab;
+            sBtn.onmouseup = () => clearTimeout(btnTimer); sBtn.ontouchend = () => clearTimeout(btnTimer);
+        });
     </script>
 </body>
 </html>
