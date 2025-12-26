@@ -6,6 +6,7 @@
     <title>个人自留地</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@jaames/iro@5"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
     <style>
         :root { --bg-paper: #fcfaf2; }
         body {
@@ -16,94 +17,73 @@
             position: fixed; width: 100%; transition: background 0.5s ease;
         }
 
+        .danmu-item {
+            position: absolute; cursor: grab;
+            box-shadow: 2px 2px 0px rgba(0,0,0,0.05); 
+            max-width: 80vw;
+            min-width: 60px; 
+            white-space: nowrap;
+            z-index: 10; user-select: none;
+            -webkit-user-select: none; touch-action: none;
+            transform: rotate(0deg);
+            transition: left 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), top 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        
         #warningZone {
             position: absolute; inset: 6px; border: 2px dashed #ef4444;
             background: rgba(239, 68, 68, 0.04); pointer-events: none;
             z-index: 5; opacity: 0; transition: opacity 0.2s ease; border-radius: 16px;
         }
         .show-warning #warningZone { opacity: 1; }
-
-        @keyframes float {
-            0%, 100% { transform: translateY(0) rotate(var(--r)); }
-            50% { transform: translateY(-8px) rotate(var(--r)); }
-        }
-        .danmu-item {
-            position: absolute; animation: float 4s ease-in-out infinite; cursor: grab;
-            box-shadow: 2px 2px 0px rgba(0,0,0,0.05); max-width: calc(100% - 40px);
-            min-width: 60px; word-wrap: break-word; z-index: 10; user-select: none;
-            -webkit-user-select: none; touch-action: none;
-            transition: left 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), top 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        }
         .is-dragging { animation: none !important; opacity: 0.8; transform: scale(1.02) rotate(0deg) !important; z-index: 1000 !important; transition: none !important; }
-        
-        .archive-item-box {
-            position: absolute; left: 16px; bottom: 16px; background: linear-gradient(135deg, #f8fafc, #f1f5f9);
-            border: 2px dashed #cbd5e1 !important; color: #64748b; transition: all 0.2s; z-index: 50;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-        }
+        .archive-item-box { position: absolute; left: 16px; bottom: 16px; background: linear-gradient(135deg, #f8fafc, #f1f5f9); border: 2px dashed #cbd5e1 !important; color: #64748b; transition: all 0.2s; z-index: 50; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
         .archive-item-box.drag-over { transform: scale(1.2); background: #e2e8f0; border-color: #3b82f6 !important; }
-        
         #detailCard { position: fixed; z-index: 1100; display: none; filter: drop-shadow(0 10px 15px rgba(0,0,0,0.1)); }
         .glass-panel { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); }
         #mainDisplay { flex: 1; position: relative; overflow: hidden; }
         .footer-area { background: rgba(255,255,255,0.9); border-top: 1px solid rgba(0,0,0,0.05); z-index: 100; padding-bottom: max(12px, env(safe-area-inset-bottom)); }
         .card-enter { animation: cardScale 0.2s ease-out forwards; }
         @keyframes cardScale { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
-        
         .modal-container { width: 90%; max-width: 400px; min-width: 320px; margin: auto; }
-
         #viewToggle { width: 44px; height: 44px; min-width: 44px; font-size: 14px; flex-shrink: 0; }
         .pos-selector { display: flex; background: #f1f5f9; border-radius: 8px; padding: 2px; gap: 2px; }
         .pos-btn { font-size: 9px; padding: 2px 8px; border-radius: 6px; color: #94a3b8; transition: all 0.2s; font-weight: bold; }
         .pos-btn.active { background: white; color: #334155; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-
-        /* 轴视图核心布局 */
         .timeline-container { position: relative; width: 100%; transition: all 0.3s; }
         .timeline-line { position: absolute; top: 0; bottom: 0; width: 2px; background: rgba(0,0,0,0.1); z-index: 0; transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-        
         .line-left .timeline-line { left: 8px; }
         .line-center .timeline-line { left: 50%; transform: translateX(-50%); }
         .line-right .timeline-line { right: 8px; left: auto; }
-
         .timeline-date-group { margin-bottom: 30px; position: relative; width: 100%; display: flex; }
         .line-left .timeline-date-group { justify-content: flex-start; }
         .line-center .timeline-date-group { justify-content: center; }
         .line-right .timeline-date-group { justify-content: flex-end; }
         .timeline-date-label { display: inline-block; background: #94a3b8; color: white; font-size: 10px; padding: 2px 10px; border-radius: 10px; font-weight: bold; z-index: 2; position: relative; }
-        
         .timeline-item { position: relative; margin-bottom: 24px; z-index: 1; display: flex; flex-direction: column; }
         .timeline-dot { position: absolute; width: 10px; height: 10px; background: #cbd5e1; border-radius: 50%; border: 2px solid white; top: 12px; transition: all 0.3s; z-index: 3; }
-        
         .timeline-info { font-size: 10px; color: #94a3b8; margin-top: 4px; display: flex; gap: 4px; align-items: center; white-space: nowrap; }
         .timeline-bubble { background: white; padding: 10px 14px; box-shadow: 0 2px 6px rgba(0,0,0,0.03); display: inline-block; max-width: 100%; border: 1px solid rgba(0,0,0,0.02); }
         .timeline-content { font-size: 14px; color: #334155; line-height: 1.5; word-break: break-all; }
-
-        /* 左视图对齐逻辑：轴线 -> 时间 -> 图标 -> 地址 */
         .line-left .timeline-item { padding-left: 24px; align-items: flex-start; text-align: left; }
         .line-left .timeline-dot { left: 4px; top: 12px; }
         .line-left .timeline-bubble { border-radius: 4px 16px 16px 16px; }
         .line-left .timeline-info { flex-direction: row; margin-left: 0; }
-
-        /* 右视图对齐逻辑：轴线 <- 时间 <- 图标 <- 地址 */
         .line-right .timeline-item { padding-right: 24px; align-items: flex-end; text-align: right; }
         .line-right .timeline-dot { right: 4px; top: 12px; }
         .line-right .timeline-bubble { border-radius: 16px 4px 16px 16px; }
         .line-right .timeline-info { flex-direction: row-reverse; }
-
-        /* 中视图对齐逻辑 */
         .line-center .timeline-item { width: 50%; }
         .line-center .timeline-item-left { margin-right: 50%; padding-right: 20px; align-items: flex-end; text-align: right; }
         .line-center .timeline-item-left .timeline-dot { right: -5px; top: 12px; }
         .line-center .timeline-item-left .timeline-info { flex-direction: row-reverse; }
         .line-center .timeline-item-left .timeline-bubble { border-radius: 16px 4px 16px 16px; }
-        
         .line-center .timeline-item-right { margin-left: 50%; padding-left: 20px; align-items: flex-start; text-align: left; }
         .line-center .timeline-item-right .timeline-dot { left: -5px; top: 12px; }
         .line-center .timeline-item-right .timeline-info { flex-direction: row; }
         .line-center .timeline-item-right .timeline-bubble { border-radius: 4px 16px 16px 16px; }
-
+        
         .archive-list { max-height: 40vh; overflow-y: auto; }
-        .archive-list-item { border-bottom: 1px solid #f1f5f9; padding: 10px 0; }
+        .archive-list-item { border-bottom: 1px solid #f1f5f9; padding: 12px 4px; }
         .restore-btn { font-size: 10px; font-weight: bold; color: #3b82f6; background: #eff6ff; padding: 4px 8px; border-radius: 6px; }
         .lab-color-item { transition: all 0.2s; border: 2px solid transparent; padding: 2px; border-radius: 50%; }
         .lab-color-item.active { border-color: #334155; transform: scale(1.1); }
@@ -126,7 +106,7 @@
                     <button onclick="setLinePos('right')" id="btnPosRight" class="pos-btn">右</button>
                 </div>
             </div>
-            <div class="flex items-center gap-1 bg-slate-50/50 px-2 py-0.5 rounded-full border border-slate-100 text-slate-500">已记录: <span id="statCount" class="font-bold text-slate-800">0</span>次</div>
+            <div onclick="openExport()" class="flex items-center gap-1 bg-slate-50/50 px-2 py-0.5 rounded-full border border-slate-100 text-slate-500 cursor-pointer active:scale-95 transition-transform">已记录: <span id="statCount" class="font-bold text-slate-800">0</span>次</div>
         </div>
     </header>
 
@@ -135,6 +115,20 @@
         <div id="danmuWall" class="w-full h-full relative"></div>
         <div id="timelineWall" class="w-full h-full overflow-y-auto hidden pb-24 px-4 pt-6 no-scrollbar"></div>
     </main>
+
+    <div id="exportModal" class="fixed inset-0 bg-black/60 z-[5000] hidden flex items-center justify-center p-4" onclick="closeExport()">
+        <div class="bg-white rounded-[2rem] p-6 shadow-2xl card-enter modal-container" onclick="event.stopPropagation()">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-bold text-slate-800 text-sm">📋 导出预览</h3>
+                <div class="flex gap-2">
+                    <button onclick="captureFullScreenshot()" class="text-[10px] text-rose-500 font-bold px-2 py-1 bg-rose-50 rounded-lg">截图</button>
+                    <button onclick="downloadTXT()" class="text-[10px] text-slate-500 font-bold px-2 py-1 bg-slate-50 rounded-lg">TXT</button>
+                </div>
+            </div>
+            <div id="exportList" class="archive-list no-scrollbar"></div>
+            <button onclick="closeExport()" class="w-full mt-4 py-3 bg-slate-800 text-white rounded-2xl text-xs font-bold shadow-lg active:scale-95">返回</button>
+        </div>
+    </div>
 
     <div id="bgSettingsModal" class="fixed inset-0 bg-black/60 z-[4000] hidden flex items-center justify-center p-4" onclick="closeBgSettings()">
         <div class="bg-white rounded-[2.5rem] p-7 shadow-2xl card-enter modal-container" onclick="event.stopPropagation()">
@@ -211,7 +205,7 @@
             <div class="flex items-center gap-2 font-mono"><span id="detailDate"></span><span id="detailTime"></span></div>
         </div>
         <div class="mt-3 flex justify-end">
-            <button onclick="document.getElementById('detailCard').style.display='none'" class="text-[10px] text-blue-500 font-bold px-4 py-1.5 bg-blue-50 rounded-lg active:scale-95">知道了</button>
+            <button onclick="document.getElementById('detailCard').style.display='none'" class="text-[10px] text-blue-500 font-bold px-4 py-1.5 bg-blue-50 rounded-lg active:scale-95">我知道了</button>
         </div>
     </div>
 
@@ -241,7 +235,6 @@
             return (y < mainRect.top + 15 || y > mainRect.bottom - 15 || x < mainRect.left + 15 || x > mainRect.right - 15);
         }
 
-        // 辅助函数：生成随机位置以减少重叠
         function getRandomPos() {
             const margin = 60;
             return {
@@ -262,7 +255,10 @@
                 const t = e.touches ? e.touches[0] : e; const dx = t.clientX - startX, dy = t.clientY - startY;
                 if (Math.abs(dx) > 5 || Math.abs(dy) > 5) { 
                     if (!isMoving) { isMoving = true; el.classList.add('is-dragging'); } 
-                    el.style.left = (initialX + dx) + 'px'; el.style.top = (initialY + dy) + 'px'; 
+                    let targetX = initialX + dx;
+                    let targetY = initialY + dy;
+                    el.style.left = targetX + 'px'; 
+                    el.style.top = targetY + 'px'; 
                     const rect = el.getBoundingClientRect();
                     if (isInvalidPosition(rect.left + rect.width / 2, rect.top + rect.height / 2)) { document.body.classList.add('show-warning'); } else { document.body.classList.remove('show-warning'); }
                     const box = document.getElementById('archiveTarget');
@@ -280,7 +276,12 @@
                         const newPos = getRandomPos();
                         el.style.left = newPos.x + 'px'; el.style.top = newPos.y + 'px';
                         note.x = newPos.x; note.y = newPos.y;
-                    } else { note.x = el.offsetLeft; note.y = el.offsetTop; }
+                    } else { 
+                        if(el.offsetLeft + el.offsetWidth > window.innerWidth - 10) {
+                           el.style.left = (window.innerWidth - el.offsetWidth - 10) + 'px';
+                        }
+                        note.x = el.offsetLeft; note.y = el.offsetTop; 
+                    }
                     const box = document.getElementById('archiveTarget');
                     if(box) { box.classList.remove('drag-over'); const r = box.getBoundingClientRect(); const t = e.changedTouches ? e.changedTouches[0] : e; if(t.clientX > r.left - 20 && t.clientX < r.right + 20 && t.clientY > r.top - 20 && t.clientY < r.bottom + 20) { note.isArchived = true; saveAndRender(); return; } }
                     saveToLocal(); 
@@ -289,45 +290,57 @@
             el.addEventListener('mousedown', onStart); el.addEventListener('touchstart', onStart, { passive: false });
         }
 
+        async function captureFullScreenshot() {
+            const kwd = document.getElementById('searchInput').value.trim();
+            const filtered = notes.filter(n => !n.isArchived && n.content.toLowerCase().includes(kwd.toLowerCase()));
+            if(filtered.length === 0) { alert("没有可截图的内容"); return; }
+            const btn = event.target;
+            btn.innerText = "生成中...";
+            const offScreenContainer = document.createElement('div');
+            offScreenContainer.style.width = '400px';
+            offScreenContainer.style.background = '#ffffff';
+            offScreenContainer.style.padding = '20px';
+            offScreenContainer.style.position = 'fixed';
+            offScreenContainer.style.left = '-10000px';
+            offScreenContainer.innerHTML = `<div style="font-weight: bold; font-size: 18px; margin-bottom: 20px; color: #334155;">记录列表</div>` + filtered.map(note => `<div style="border-bottom: 1px solid #f1f5f9; padding: 12px 0;"><div style="font-size: 14px; color: #1e293b; margin-bottom: 4px;">${note.content}</div><div style="font-size: 10px; color: #94a3b8; display: flex; justify-content: space-between;"><span>📍 ${note.addr}</span><span>${new Date(note.timestamp).toLocaleString()}</span></div></div>`).join('');
+            document.body.appendChild(offScreenContainer);
+            try {
+                const canvas = await html2canvas(offScreenContainer, { backgroundColor: "#ffffff", scale: 2, useCORS: true });
+                const link = document.createElement('a');
+                link.download = `我的记录_${Date.now()}.png`;
+                link.href = canvas.toDataURL("image/png");
+                link.click();
+            } catch (err) { console.error("截图失败", err); } finally { document.body.removeChild(offScreenContainer); btn.innerText = "截图"; }
+        }
+
+        function downloadTXT() {
+            const kwd = document.getElementById('searchInput').value.trim();
+            const filtered = notes.filter(n => !n.isArchived && n.content.toLowerCase().includes(kwd.toLowerCase()));
+            const textLines = filtered.map(n => {
+                const cleanContent = n.content.replace(/^[\r\n\s]+/, '').trim();
+                return `[${new Date(n.timestamp).toLocaleString()}] @${n.addr}: ${cleanContent}`;
+            });
+            const finalText = textLines.join('\n').trim();
+            if (!finalText) return;
+            const blob = new Blob([finalText], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `我的记录_${Date.now()}.txt`;
+            document.body.appendChild(a); 
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
         function initPickers() {
             bgColorPicker = new iro.ColorPicker("#bgPicker", { width: 180, color: localStorage.getItem('fave_bg_v12') || "#fcfaf2" });
             bgColorPicker.on('color:change', (color) => { document.getElementById('bgInput').value = color.hexString; applyBgStyle(color.hexString); });
             labColorPicker = new iro.ColorPicker("#labPicker", { width: 180, color: currentLaboratoryStyle.text });
-            labColorPicker.on('color:change', (color) => { 
-                if(labTarget === 'text') { 
-                    document.getElementById('textPreview').style.backgroundColor = color.hexString; 
-                } else { 
-                    document.getElementById('danmuBgPreview').style.backgroundColor = color.hexString; 
-                } 
-            });
+            labColorPicker.on('color:change', (color) => { if(labTarget === 'text') { document.getElementById('textPreview').style.backgroundColor = color.hexString; } else { document.getElementById('danmuBgPreview').style.backgroundColor = color.hexString; } });
         }
-
-        function switchLabTarget(target) { 
-            labTarget = target; 
-            document.getElementById('textPreviewItem').classList.toggle('active', target === 'text'); 
-            document.getElementById('bgPreviewItem').classList.toggle('active', target === 'bg'); 
-            labColorPicker.setColor(target === 'text' ? document.getElementById('textPreview').style.backgroundColor : document.getElementById('danmuBgPreview').style.backgroundColor); 
-        }
-
-        function handleSend() { 
-            const input = document.getElementById('noteInput'), content = input.value.trim(); 
-            const loc = document.getElementById('locInput').value.trim() || "此刻的心里"; 
-            if(!content) return; 
-            const pos = getRandomPos(); // 发布即随机位置
-            notes.unshift({ 
-                id: 'n_' + Date.now(), 
-                content, 
-                timestamp: Date.now(), 
-                addr: loc, 
-                isArchived: false, 
-                style: JSON.parse(JSON.stringify(currentLaboratoryStyle)),
-                x: pos.x, 
-                y: pos.y 
-            }); 
-            saveAndRender(); 
-            input.value = ''; 
-        }
-        
+        function switchLabTarget(target) { labTarget = target; document.getElementById('textPreviewItem').classList.toggle('active', target === 'text'); document.getElementById('bgPreviewItem').classList.toggle('active', target === 'bg'); labColorPicker.setColor(target === 'text' ? document.getElementById('textPreview').style.backgroundColor : document.getElementById('danmuBgPreview').style.backgroundColor); }
+        function handleSend() { const input = document.getElementById('noteInput'), content = input.value.trim(); const loc = document.getElementById('locInput').value.trim() || "此刻的心里"; if(!content) return; const pos = getRandomPos(); notes.unshift({ id: 'n_' + Date.now(), content, timestamp: Date.now(), addr: loc, isArchived: false, style: JSON.parse(JSON.stringify(currentLaboratoryStyle)), x: pos.x, y: pos.y }); saveAndRender(); input.value = ''; }
         function render() {
             const kwd = document.getElementById('searchInput').value.trim();
             document.getElementById('statKeyword').innerText = kwd || "全部";
@@ -335,101 +348,30 @@
             let filtered = notes.filter(n => !n.isArchived && n.content.toLowerCase().includes(kwd.toLowerCase()));
             document.getElementById('statCount').innerText = filtered.length;
             wall.innerHTML = ''; timeline.innerHTML = '';
-
             if(viewMode === 'wall') {
                 wall.classList.remove('hidden'); timeline.classList.add('hidden'); pSel.classList.add('hidden');
-                filtered.forEach(note => {
-                    const el = document.createElement('div'); 
-                    const s = note.style || { text: '#334155', bg: '#ffffff', border: 1.5 };
-                    el.className = `danmu-item px-4 py-2 border rounded-2xl text-xs font-medium`;
-                    el.style.backgroundColor = s.bg; 
-                    el.style.color = s.text; 
-                    el.style.borderWidth = s.border + 'px'; 
-                    el.style.borderColor = s.text;
-                    el.style.left = (note.x || 50) + 'px'; 
-                    el.style.top = (note.y || 150) + 'px';
-                    // 为每个弹幕应用一个独一无二的轻微旋转
-                    const randomRotate = (Math.random() * 6 - 3).toFixed(1);
-                    el.style.setProperty('--r', `${randomRotate}deg`); 
-                    el.innerText = note.content;
-                    bindInteraction(el, note); wall.appendChild(el);
-                });
+                filtered.forEach(note => { const el = document.createElement('div'); const s = note.style || { text: '#334155', bg: '#ffffff', border: 1.5 }; el.className = `danmu-item px-4 py-2 border rounded-2xl text-xs font-medium`; el.style.backgroundColor = s.bg; el.style.color = s.text; el.style.borderWidth = s.border + 'px'; el.style.borderColor = s.text; el.style.left = (note.x || 50) + 'px'; el.style.top = (note.y || 150) + 'px'; el.innerText = note.content; bindInteraction(el, note); wall.appendChild(el); });
                 addArchiveBox(notes.filter(n => n.isArchived).length);
             } else {
                 wall.classList.add('hidden'); timeline.classList.remove('hidden'); pSel.classList.remove('hidden');
-                const container = document.createElement('div'); 
-                container.className = `timeline-container line-${linePos}`;
-                const line = document.createElement('div'); line.className = 'timeline-line';
-                container.appendChild(line);
-
-                let lastDate = ""; let itemIndex = 0;
-                filtered.sort((a,b) => b.timestamp - a.timestamp).forEach((note) => {
-                    const d = new Date(note.timestamp); const dateStr = `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日`;
-                    if(dateStr !== lastDate) {
-                        const dateGroup = document.createElement('div'); dateGroup.className = 'timeline-date-group';
-                        dateGroup.innerHTML = `<div class="timeline-date-label">${dateStr}</div>`;
-                        container.appendChild(dateGroup); lastDate = dateStr; itemIndex = 0;
-                    }
-                    const item = document.createElement('div'); 
-                    let sideClass = '';
-                    if(linePos === 'center') { sideClass = (itemIndex % 2 === 0 ? 'timeline-item-left' : 'timeline-item-right'); }
-                    item.className = `timeline-item ${sideClass}`;
-                    const timeStr = `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
-                    item.innerHTML = `
-                        <div class="timeline-dot"></div>
-                        <div class="timeline-bubble" onclick="showDetailCardFromTimeline(event, '${note.id}')">
-                            <div class="timeline-content">${note.content}</div>
-                        </div>
-                        <div class="timeline-info"><span>${timeStr}</span><span>📍</span><span>${note.addr}</span></div>
-                    `;
-                    container.appendChild(item); itemIndex++;
-                });
-                timeline.appendChild(container);
+                const container = document.createElement('div'); container.className = `timeline-container line-${linePos}`; const line = document.createElement('div'); line.className = 'timeline-line'; container.appendChild(line);
+                let lastDate = ""; let itemIndex = 0; filtered.sort((a,b) => b.timestamp - a.timestamp).forEach((note) => { const d = new Date(note.timestamp); const dateStr = `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日`; if(dateStr !== lastDate) { const dateGroup = document.createElement('div'); dateGroup.className = 'timeline-date-group'; dateGroup.innerHTML = `<div class="timeline-date-label">${dateStr}</div>`; container.appendChild(dateGroup); lastDate = dateStr; itemIndex = 0; } const item = document.createElement('div'); let sideClass = ''; if(linePos === 'center') { sideClass = (itemIndex % 2 === 0 ? 'timeline-item-left' : 'timeline-item-right'); } item.className = `timeline-item ${sideClass}`; const timeStr = `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`; item.innerHTML = `<div class="timeline-dot"></div><div class="timeline-bubble" onclick="showDetailCardFromTimeline(event, '${note.id}')"><div class="timeline-content">${note.content}</div></div><div class="timeline-info"><span>${timeStr}</span><span>📍</span><span>${note.addr}</span></div>`; container.appendChild(item); itemIndex++; }); timeline.appendChild(container);
             }
         }
-
+        function openExport() { const list = document.getElementById('exportList'); const kwd = document.getElementById('searchInput').value.trim(); const filtered = notes.filter(n => !n.isArchived && n.content.toLowerCase().includes(kwd.toLowerCase())); list.innerHTML = filtered.length ? '' : '<div class="text-center text-xs text-gray-400 py-8">暂无匹配记录...</div>'; filtered.forEach(note => { const item = document.createElement('div'); item.className = 'archive-list-item'; item.innerHTML = `<div class="text-[11px] text-slate-700 leading-snug">${note.content}</div><div class="text-[8px] text-slate-400 font-mono mt-1 flex justify-between"><span>📍 ${note.addr}</span><span>${new Date(note.timestamp).toLocaleString()}</span></div>`; list.appendChild(item); }); document.getElementById('exportModal').classList.remove('hidden'); }
+        function closeExport() { document.getElementById('exportModal').classList.add('hidden'); }
         function setLinePos(pos) { linePos = pos; document.querySelectorAll('.pos-btn').forEach(btn => btn.classList.remove('active')); document.getElementById(`btnPos${pos.charAt(0).toUpperCase() + pos.slice(1)}`).classList.add('active'); render(); }
         function toggleView() { viewMode = viewMode === 'wall' ? 'timeline' : 'wall'; document.getElementById('viewToggle').innerText = viewMode === 'wall' ? '轴' : '墙'; render(); }
         function showDetailCardFromTimeline(e, id) { const note = notes.find(n => n.id === id); if(note) showDetailCard(e.clientX, e.clientY, note); }
         function addArchiveBox(count) { const el = document.createElement('div'); el.id = 'archiveTarget'; el.className = 'archive-item-box px-4 py-2 rounded-full text-[11px] font-bold flex items-center gap-2'; el.innerHTML = `<span>📦</span><span>归档</span><span class="bg-slate-200 px-1.5 py-0.5 rounded-full text-[10px]">${count}</span>`; el.onclick = openArchive; document.getElementById('danmuWall').appendChild(el); }
         function openArchive() { const list = document.getElementById('archiveList'), archived = notes.filter(n => n.isArchived); list.innerHTML = archived.length ? '' : '<div class="text-center text-xs text-gray-400 py-8">拖拽弹幕至此归档...</div>'; archived.forEach(note => { const item = document.createElement('div'); item.className = 'archive-list-item flex justify-between items-center gap-3'; item.innerHTML = `<div class="flex-1 min-w-0"><div class="text-[11px] text-slate-700 truncate">${note.content}</div><div class="text-[8px] text-slate-400 font-mono">${new Date(note.timestamp).toLocaleString()}</div></div><button onclick="restoreNote('${note.id}')" class="restore-btn">还原</button>`; list.appendChild(item); }); document.getElementById('archiveModal').classList.remove('hidden'); }
-        
-        function restoreNote(id) { 
-            const n = notes.find(x => x.id === id); 
-            if(n) { 
-                n.isArchived = false; 
-                const pos = getRandomPos(); // 还原即随机位置
-                n.x = pos.x; 
-                n.y = pos.y; 
-                saveAndRender(); 
-                openArchive(); 
-            } 
-        }
-
+        function restoreNote(id) { const n = notes.find(x => x.id === id); if(n) { n.isArchived = false; const pos = getRandomPos(); n.x = pos.x; n.y = pos.y; saveAndRender(); openArchive(); } }
         function showConfirmModal() { document.getElementById('confirmModal').classList.remove('hidden'); }
         function closeConfirmModal() { document.getElementById('confirmModal').classList.add('hidden'); }
         function clearAllArchived() { notes = notes.filter(n => !n.isArchived); saveAndRender(); closeConfirmModal(); closeArchive(); }
         function closeArchive() { document.getElementById('archiveModal').classList.add('hidden'); }
-
-        function initLabUI() { 
-            const s = currentLaboratoryStyle; 
-            document.getElementById('textPreview').style.backgroundColor = s.text; 
-            document.getElementById('danmuBgPreview').style.backgroundColor = s.bg; 
-            document.getElementById('styleBorderSize').value = s.border; 
-            document.getElementById('borderValDisplay').innerText = s.border + 'px'; 
-        }
-
-        function saveStyleSettings() { 
-            currentLaboratoryStyle = { 
-                text: document.getElementById('textPreview').style.backgroundColor, 
-                bg: document.getElementById('danmuBgPreview').style.backgroundColor, 
-                border: parseFloat(document.getElementById('styleBorderSize').value)
-            }; 
-            localStorage.setItem('fave_lab_style_v12', JSON.stringify(currentLaboratoryStyle)); 
-            closeDanmuStyle(); 
-            render(); 
-        }
-
+        function initLabUI() { const s = currentLaboratoryStyle; document.getElementById('textPreview').style.backgroundColor = s.text; document.getElementById('danmuBgPreview').style.backgroundColor = s.bg; document.getElementById('styleBorderSize').value = s.border; document.getElementById('borderValDisplay').innerText = s.border + 'px'; }
+        function saveStyleSettings() { currentLaboratoryStyle = { text: document.getElementById('textPreview').style.backgroundColor, bg: document.getElementById('danmuBgPreview').style.backgroundColor, border: parseFloat(document.getElementById('styleBorderSize').value) }; localStorage.setItem('fave_lab_style_v12', JSON.stringify(currentLaboratoryStyle)); closeDanmuStyle(); render(); }
         function resetDanmuStyle() { currentLaboratoryStyle = { text: '#334155', bg: '#ffffff', border: 1.5 }; initLabUI(); saveStyleSettings(); }
         function closeDanmuStyle() { document.getElementById('danmuStyleModal').classList.add('hidden'); }
         function initBg() { const savedBg = localStorage.getItem('fave_bg_v12') || '#fcfaf2'; applyBgStyle(savedBg); document.getElementById('bgInput').value = savedBg; }
@@ -441,28 +383,10 @@
         function updateDateDisplay() { const now = new Date(); document.getElementById('dateDisplay').innerText = `${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')}`; }
         function saveToLocal() { localStorage.setItem('fave_notes_v12', JSON.stringify(notes)); }
         function saveAndRender() { saveToLocal(); render(); }
-        
         let bgTimer;
         const main = document.getElementById('mainDisplay');
-        const handleBgStart = (e) => {
-            const isItem = e.target.closest('.danmu-item') || e.target.closest('.timeline-bubble') || e.target.closest('.archive-item-box') || e.target.closest('.pos-selector') || e.target.closest('.modal-container');
-            if(!isItem) bgTimer = setTimeout(() => document.getElementById('bgSettingsModal').classList.remove('hidden'), 800);
-        };
-
-        document.addEventListener('DOMContentLoaded', () => {
-            initPickers(); initLabUI(); initBg(); render(); updateDateDisplay();
-            const nInput = document.getElementById('noteInput'); const sBtn = document.getElementById('submitBtn');
-            sBtn.onclick = handleSend;
-            document.getElementById('viewToggle').onclick = toggleView;
-            document.getElementById('searchInput').oninput = render;
-            nInput.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } });
-            main.onmousedown = handleBgStart; main.ontouchstart = handleBgStart;
-            main.onmouseup = () => clearTimeout(bgTimer); main.ontouchend = () => clearTimeout(bgTimer);
-            let btnTimer;
-            const startLab = () => btnTimer = setTimeout(() => document.getElementById('danmuStyleModal').classList.remove('hidden'), 800);
-            sBtn.onmousedown = startLab; sBtn.ontouchstart = startLab;
-            sBtn.onmouseup = () => clearTimeout(btnTimer); sBtn.ontouchend = () => clearTimeout(btnTimer);
-        });
+        const handleBgStart = (e) => { const isItem = e.target.closest('.danmu-item') || e.target.closest('.timeline-bubble') || e.target.closest('.archive-item-box') || e.target.closest('.pos-selector') || e.target.closest('.modal-container') || e.target.closest('.archive-list-item'); if(!isItem) bgTimer = setTimeout(() => document.getElementById('bgSettingsModal').classList.remove('hidden'), 800); };
+        document.addEventListener('DOMContentLoaded', () => { initPickers(); initLabUI(); initBg(); render(); updateDateDisplay(); const nInput = document.getElementById('noteInput'); const sBtn = document.getElementById('submitBtn'); sBtn.onclick = handleSend; document.getElementById('viewToggle').onclick = toggleView; document.getElementById('searchInput').oninput = render; nInput.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }); main.onmousedown = handleBgStart; main.ontouchstart = handleBgStart; main.onmouseup = () => clearTimeout(bgTimer); main.ontouchend = () => clearTimeout(bgTimer); let btnTimer; const startLab = () => btnTimer = setTimeout(() => document.getElementById('danmuStyleModal').classList.remove('hidden'), 800); sBtn.onmousedown = startLab; sBtn.ontouchstart = startLab; sBtn.onmouseup = () => clearTimeout(btnTimer); sBtn.ontouchend = () => clearTimeout(btnTimer); });
     </script>
 </body>
 </html>
