@@ -67,20 +67,14 @@
         .line-left .timeline-item { padding-left: 24px; align-items: flex-start; text-align: left; }
         .line-left .timeline-dot { left: 4px; top: 12px; }
         .line-left .timeline-bubble { border-radius: 4px 16px 16px 16px; }
-        .line-left .timeline-info { flex-direction: row; margin-left: 0; }
         .line-right .timeline-item { padding-right: 24px; align-items: flex-end; text-align: right; }
         .line-right .timeline-dot { right: 4px; top: 12px; }
         .line-right .timeline-bubble { border-radius: 16px 4px 16px 16px; }
-        .line-right .timeline-info { flex-direction: row-reverse; }
         .line-center .timeline-item { width: 50%; }
         .line-center .timeline-item-left { margin-right: 50%; padding-right: 20px; align-items: flex-end; text-align: right; }
         .line-center .timeline-item-left .timeline-dot { right: -5px; top: 12px; }
-        .line-center .timeline-item-left .timeline-info { flex-direction: row-reverse; }
-        .line-center .timeline-item-left .timeline-bubble { border-radius: 16px 4px 16px 16px; }
         .line-center .timeline-item-right { margin-left: 50%; padding-left: 20px; align-items: flex-start; text-align: left; }
         .line-center .timeline-item-right .timeline-dot { left: -5px; top: 12px; }
-        .line-center .timeline-item-right .timeline-info { flex-direction: row; }
-        .line-center .timeline-item-right .timeline-bubble { border-radius: 4px 16px 16px 16px; }
         
         .archive-list { max-height: 40vh; overflow-y: auto; }
         .archive-list-item { border-bottom: 1px solid #f1f5f9; padding: 12px 4px; }
@@ -116,12 +110,23 @@
         <div id="timelineWall" class="w-full h-full overflow-y-auto hidden pb-24 px-4 pt-6 no-scrollbar"></div>
     </main>
 
+    <div id="detailCard" class="bg-white rounded-2xl border shadow-2xl p-4 w-64 card-enter">
+        <textarea id="detailEditArea" class="w-full text-sm text-slate-700 leading-relaxed break-words font-medium mb-3 bg-slate-50 p-2 rounded-lg border-none outline-none focus:ring-1 focus:ring-blue-100 resize-none overflow-hidden" placeholder="修改内容..."></textarea>
+        <div class="flex items-center justify-between border-t border-gray-50 pt-3 text-[10px] text-slate-400">
+            <span id="detailLoc" class="font-bold truncate max-w-[100px]">📍 地点</span>
+            <div class="flex items-center gap-2 font-mono"><span id="detailDate"></span><span id="detailTime"></span></div>
+        </div>
+        <div class="mt-3 flex justify-end">
+            <button onclick="closeAndSaveDetail()" class="text-[10px] text-blue-500 font-bold px-4 py-1.5 bg-blue-50 rounded-lg active:scale-95">我知道了</button>
+        </div>
+    </div>
+
     <div id="exportModal" class="fixed inset-0 bg-black/60 z-[5000] hidden flex items-center justify-center p-4" onclick="closeExport()">
         <div class="bg-white rounded-[2rem] p-6 shadow-2xl card-enter modal-container" onclick="event.stopPropagation()">
             <div class="flex justify-between items-center mb-4">
                 <h3 class="font-bold text-slate-800 text-sm">📋 导出预览</h3>
                 <div class="flex gap-2">
-                    <button onclick="captureFullScreenshot()" class="text-[10px] text-rose-500 font-bold px-2 py-1 bg-rose-50 rounded-lg">截图</button>
+                    <button id="captureBtn" onclick="captureFullScreenshot()" class="text-[10px] text-rose-500 font-bold px-2 py-1 bg-rose-50 rounded-lg">截图</button>
                     <button onclick="downloadTXT()" class="text-[10px] text-slate-500 font-bold px-2 py-1 bg-slate-50 rounded-lg">TXT</button>
                 </div>
             </div>
@@ -198,17 +203,6 @@
         </div>
     </div>
 
-    <div id="detailCard" class="bg-white rounded-2xl border shadow-2xl p-4 w-64 card-enter">
-        <div id="detailContent" class="text-sm text-slate-700 leading-relaxed break-words font-medium mb-3"></div>
-        <div class="flex items-center justify-between border-t border-gray-50 pt-3 text-[10px] text-slate-400">
-            <span id="detailLoc" class="font-bold truncate max-w-[100px]">📍 地点</span>
-            <div class="flex items-center gap-2 font-mono"><span id="detailDate"></span><span id="detailTime"></span></div>
-        </div>
-        <div class="mt-3 flex justify-end">
-            <button onclick="document.getElementById('detailCard').style.display='none'" class="text-[10px] text-blue-500 font-bold px-4 py-1.5 bg-blue-50 rounded-lg active:scale-95">我知道了</button>
-        </div>
-    </div>
-
     <footer id="footerBar" class="footer-area shadow-2xl">
         <div class="flex items-center justify-between px-4 py-1 text-[10px] text-gray-400">
             <div class="flex items-center gap-1">📍 <input type="text" id="locInput" value="此刻的心里" class="bg-transparent border-none outline-none font-bold text-slate-500" style="width:100px;"></div>
@@ -228,25 +222,17 @@
             { id: 'def_1', content: '欢迎来到你的个人自留地 ⛱️', timestamp: Date.now(), addr: '光阴深处', isArchived: false, style: { text: '#ffffff', bg: '#1e293b', border: 2 }, x: 50, y: 120 },
             { id: 'def_2', content: '长按发送按钮可以开启样式实验室 ✨', timestamp: Date.now() - 10000, addr: '新手村', isArchived: false, style: { text: '#3b82f6', bg: '#eff6ff', border: 1.5 }, x: 80, y: 220 },
             { id: 'def_3', content: '拖动我到左下角可以归档哦 📦', timestamp: Date.now() - 20000, addr: '小贴士', isArchived: false, style: { text: '#ec4899', bg: '#fdf2f8', border: 1.5 }, x: 40, y: 320 }
-
         ];
 
         let localData = JSON.parse(localStorage.getItem('fave_notes_v12')) || [];
-        let notes;
-        
-        // 逻辑：如果本地没有数据，加载示例；如果有数据，检查是否包含示例ID，没有则合进去
-        if (localData.length === 0) {
-            notes = defaultNotes;
-        } else {
-            const hasDefault = localData.some(n => n.id.startsWith('def_'));
-            notes = hasDefault ? localData : [...defaultNotes, ...localData];
-        }
+        let notes = localData.length === 0 ? defaultNotes : localData;
 
         let viewMode = 'wall';
         let linePos = 'center';
         let currentLaboratoryStyle = JSON.parse(localStorage.getItem('fave_lab_style_v12')) || { text: '#334155', bg: '#ffffff', border: 1.5 };
         let labTarget = 'text';
         let bgColorPicker, labColorPicker;
+        let activeNoteId = null; 
 
         // --- 2. 交互逻辑 ---
         function isInvalidPosition(x, y) {
@@ -304,7 +290,41 @@
             el.addEventListener('mousedown', onStart); el.addEventListener('touchstart', onStart, { passive: false });
         }
 
-        // --- 3. 渲染与功能逻辑 ---
+        // --- 3. 详情卡片编辑逻辑 ---
+        function showDetailCard(x, y, note) {
+            const card = document.getElementById('detailCard');
+            const editArea = document.getElementById('detailEditArea');
+            const d = new Date(note.timestamp);
+            activeNoteId = note.id; 
+            document.getElementById('detailLoc').innerText = `📍 ${note.addr}`;
+            document.getElementById('detailDate').innerText = d.toLocaleDateString();
+            document.getElementById('detailTime').innerText = d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+            editArea.value = note.content;
+            card.style.display = 'block';
+            autoResizeEdit(editArea); 
+            card.style.left = Math.min(Math.max(10, x - 128), window.innerWidth - 270) + 'px';
+            card.style.top = (y < 200 ? y + 20 : y - 180) + 'px';
+        }
+
+        function autoResizeEdit(el) {
+            el.style.height = 'auto';
+            el.style.height = (el.scrollHeight) + 'px';
+        }
+
+        function closeAndSaveDetail() {
+            if (activeNoteId) {
+                const newContent = document.getElementById('detailEditArea').value.trim();
+                const note = notes.find(n => n.id === activeNoteId);
+                if (note && newContent && note.content !== newContent) {
+                    note.content = newContent;
+                    saveAndRender(); 
+                }
+            }
+            document.getElementById('detailCard').style.display = 'none';
+            activeNoteId = null;
+        }
+
+        // --- 4. 渲染函数 ---
         function render() {
             const kwd = document.getElementById('searchInput').value.trim();
             document.getElementById('statKeyword').innerText = kwd || "全部";
@@ -312,7 +332,6 @@
             let filtered = notes.filter(n => !n.isArchived && n.content.toLowerCase().includes(kwd.toLowerCase()));
             document.getElementById('statCount').innerText = filtered.length;
             wall.innerHTML = ''; timeline.innerHTML = '';
-
             if(viewMode === 'wall') {
                 wall.classList.remove('hidden'); timeline.classList.add('hidden'); pSel.classList.add('hidden');
                 filtered.forEach(note => {
@@ -320,13 +339,7 @@
                     const s = note.style || { text: '#334155', bg: '#ffffff', border: 1.5 };
                     el.className = `danmu-item px-4 py-2 border rounded-2xl text-xs font-medium`;
                     el.style.backgroundColor = s.bg; el.style.color = s.text; el.style.borderWidth = s.border + 'px'; el.style.borderColor = s.text;
-                    
-                    // 防丢失逻辑：如果坐标在下方被遮挡，修正显示位置
-                    let safeY = note.y || 150;
-                    if (safeY > window.innerHeight * 0.75) safeY = 150 + Math.random() * 200;
-                    
-                    el.style.left = (note.x || 50) + 'px';
-                    el.style.top = safeY + 'px';
+                    el.style.left = (note.x || 50) + 'px'; el.style.top = (note.y || 150) + 'px';
                     el.innerText = note.content;
                     bindInteraction(el, note);
                     wall.appendChild(el);
@@ -335,17 +348,49 @@
             } else {
                 wall.classList.add('hidden'); timeline.classList.remove('hidden'); pSel.classList.remove('hidden');
                 const container = document.createElement('div'); container.className = `timeline-container line-${linePos}`; const line = document.createElement('div'); line.className = 'timeline-line'; container.appendChild(line);
-                let lastDate = ""; let itemIndex = 0; filtered.sort((a,b) => b.timestamp - a.timestamp).forEach((note) => { const d = new Date(note.timestamp); const dateStr = `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日`; if(dateStr !== lastDate) { const dateGroup = document.createElement('div'); dateGroup.className = 'timeline-date-group'; dateGroup.innerHTML = `<div class="timeline-date-label">${dateStr}</div>`; container.appendChild(dateGroup); lastDate = dateStr; itemIndex = 0; } const item = document.createElement('div'); let sideClass = ''; if(linePos === 'center') { sideClass = (itemIndex % 2 === 0 ? 'timeline-item-left' : 'timeline-item-right'); } item.className = `timeline-item ${sideClass}`; const timeStr = `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`; item.innerHTML = `<div class="timeline-dot"></div><div class="timeline-bubble" onclick="showDetailCardFromTimeline(event, '${note.id}')"><div class="timeline-content">${note.content}</div></div><div class="timeline-info"><span>${timeStr}</span><span>📍</span><span>${note.addr}</span></div>`; container.appendChild(item); itemIndex++; }); timeline.appendChild(container);
+                let lastDate = ""; let itemIndex = 0; filtered.sort((a,b) => b.timestamp - a.timestamp).forEach((note) => { const d = new Date(note.timestamp); const dateStr = `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日`; if(dateStr !== lastDate) { const dateGroup = document.createElement('div'); dateGroup.className = 'timeline-date-group'; dateGroup.innerHTML = `<div class="timeline-date-label">${dateStr}</div>`; container.appendChild(dateGroup); lastDate = dateStr; itemIndex = 0; } const item = document.createElement('div'); let sideClass = (linePos === 'center' ? (itemIndex % 2 === 0 ? 'timeline-item-left' : 'timeline-item-right') : ''); item.className = `timeline-item ${sideClass}`; const timeStr = `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`; item.innerHTML = `<div class="timeline-dot"></div><div class="timeline-bubble" onclick="showDetailCardFromTimeline(event, '${note.id}')"><div class="timeline-content">${note.content}</div></div><div class="timeline-info"><span>${timeStr}</span><span>📍</span><span>${note.addr}</span></div>`; container.appendChild(item); itemIndex++; }); timeline.appendChild(container);
             }
         }
 
-        // --- 基础功能函数 (保持不变) ---
+        // --- 5. 截图功能修复 ---
+        async function captureFullScreenshot() { 
+            const kwd = document.getElementById('searchInput').value.trim(); 
+            const filtered = notes.filter(n => !n.isArchived && n.content.toLowerCase().includes(kwd.toLowerCase())); 
+            if(filtered.length === 0) return; 
+            
+            const btn = document.getElementById('captureBtn');
+            const originalText = btn.innerText;
+            btn.innerText = "生成中..."; 
+            
+            const offScreenContainer = document.createElement('div'); 
+            offScreenContainer.style.width = '400px'; 
+            offScreenContainer.style.background = '#ffffff'; 
+            offScreenContainer.style.padding = '20px'; 
+            offScreenContainer.style.position = 'fixed'; 
+            offScreenContainer.style.left = '-10000px'; 
+            offScreenContainer.innerHTML = `<div style="font-weight: bold; font-size: 18px; margin-bottom: 20px;">记录列表</div>` + filtered.map(note => `<div style="border-bottom: 1px solid #f1f5f9; padding: 12px 0;"><div style="font-size: 14px; margin-bottom: 4px;">${note.content}</div><div style="font-size: 10px; color: #94a3b8; display: flex; justify-content: space-between;"><span>📍 ${note.addr}</span><span>${new Date(note.timestamp).toLocaleString()}</span></div></div>`).join(''); 
+            document.body.appendChild(offScreenContainer); 
+
+            try { 
+                const canvas = await html2canvas(offScreenContainer, { backgroundColor: "#ffffff", scale: 2 }); 
+                const link = document.createElement('a'); 
+                link.download = `记录_${Date.now()}.png`; 
+                link.href = canvas.toDataURL("image/png"); // 修复此处的拼写错误
+                link.click(); 
+            } catch (err) {
+                console.error("截图失败:", err);
+            } finally { 
+                document.body.removeChild(offScreenContainer); 
+                btn.innerText = originalText; 
+            } 
+        }
+
+        // --- 6. 其他基础功能 ---
         function saveToLocal() { localStorage.setItem('fave_notes_v12', JSON.stringify(notes)); }
         function saveAndRender() { saveToLocal(); render(); }
         function handleSend() { const input = document.getElementById('noteInput'), content = input.value.trim(); const loc = document.getElementById('locInput').value.trim() || "此刻的心里"; if(!content) return; const pos = getRandomPos(); notes.unshift({ id: 'n_' + Date.now(), content, timestamp: Date.now(), addr: loc, isArchived: false, style: JSON.parse(JSON.stringify(currentLaboratoryStyle)), x: pos.x, y: pos.y }); saveAndRender(); input.value = ''; }
         function toggleView() { viewMode = viewMode === 'wall' ? 'timeline' : 'wall'; document.getElementById('viewToggle').innerText = viewMode === 'wall' ? '轴' : '墙'; render(); }
         function setLinePos(pos) { linePos = pos; document.querySelectorAll('.pos-btn').forEach(btn => btn.classList.remove('active')); document.getElementById(`btnPos${pos.charAt(0).toUpperCase() + pos.slice(1)}`).classList.add('active'); render(); }
-        function showDetailCard(x, y, note) { const card = document.getElementById('detailCard'), d = new Date(note.timestamp); document.getElementById('detailLoc').innerText = `📍 ${note.addr}`; document.getElementById('detailDate').innerText = d.toLocaleDateString(); document.getElementById('detailTime').innerText = d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}); document.getElementById('detailContent').innerText = note.content; card.style.display = 'block'; card.style.left = Math.min(Math.max(10, x - 128), window.innerWidth - 270) + 'px'; card.style.top = (y < 200 ? y + 20 : y - 180) + 'px'; }
         function showDetailCardFromTimeline(e, id) { const note = notes.find(n => n.id === id); if(note) showDetailCard(e.clientX, e.clientY, note); }
         function addArchiveBox(count) { const el = document.createElement('div'); el.id = 'archiveTarget'; el.className = 'archive-item-box px-4 py-2 rounded-full text-[11px] font-bold flex items-center gap-2'; el.innerHTML = `<span>📦</span><span>归档</span><span class="bg-slate-200 px-1.5 py-0.5 rounded-full text-[10px]">${count}</span>`; el.onclick = openArchive; document.getElementById('danmuWall').appendChild(el); }
         function openArchive() { const list = document.getElementById('archiveList'), archived = notes.filter(n => n.isArchived); list.innerHTML = archived.length ? '' : '<div class="text-center text-xs text-gray-400 py-8">拖拽弹幕至此归档...</div>'; archived.forEach(note => { const item = document.createElement('div'); item.className = 'archive-list-item flex justify-between items-center gap-3'; item.innerHTML = `<div class="flex-1 min-w-0"><div class="text-[11px] text-slate-700 truncate">${note.content}</div><div class="text-[8px] text-slate-400 font-mono">${new Date(note.timestamp).toLocaleString()}</div></div><button onclick="restoreNote('${note.id}')" class="restore-btn">还原</button>`; list.appendChild(item); }); document.getElementById('archiveModal').classList.remove('hidden'); }
@@ -356,6 +401,8 @@
         function closeArchive() { document.getElementById('archiveModal').classList.add('hidden'); }
         function closeExport() { document.getElementById('exportModal').classList.add('hidden'); }
         function openExport() { const list = document.getElementById('exportList'); const kwd = document.getElementById('searchInput').value.trim(); const filtered = notes.filter(n => !n.isArchived && n.content.toLowerCase().includes(kwd.toLowerCase())); list.innerHTML = filtered.length ? '' : '<div class="text-center text-xs text-gray-400 py-8">暂无匹配记录...</div>'; filtered.forEach(note => { const item = document.createElement('div'); item.className = 'archive-list-item'; item.innerHTML = `<div class="text-[11px] text-slate-700 leading-snug">${note.content}</div><div class="text-[8px] text-slate-400 font-mono mt-1 flex justify-between"><span>📍 ${note.addr}</span><span>${new Date(note.timestamp).toLocaleString()}</span></div>`; list.appendChild(item); }); document.getElementById('exportModal').classList.remove('hidden'); }
+        function downloadTXT() { const kwd = document.getElementById('searchInput').value.trim(); const filtered = notes.filter(n => !n.isArchived && n.content.toLowerCase().includes(kwd.toLowerCase())); const text = filtered.map(n => `[${new Date(n.timestamp).toLocaleString()}] @${n.addr}: ${n.content}`).join('\n'); if (!text) return; const blob = new Blob([text], { type: 'text/plain' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `记录_${Date.now()}.txt`; a.click(); }
+        function updateDateDisplay() { const now = new Date(); document.getElementById('dateDisplay').innerText = `${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')}`; }
         function initBg() { const savedBg = localStorage.getItem('fave_bg_v12') || '#fcfaf2'; applyBgStyle(savedBg); document.getElementById('bgInput').value = savedBg; }
         function applyBg() { const val = document.getElementById('bgInput').value.trim(); if (val) { applyBgStyle(val); localStorage.setItem('fave_bg_v12', val); } closeBgSettings(); }
         function resetBg() { applyBgStyle('#fcfaf2'); localStorage.removeItem('fave_bg_v12'); closeBgSettings(); }
@@ -366,23 +413,20 @@
         function resetDanmuStyle() { currentLaboratoryStyle = { text: '#334155', bg: '#ffffff', border: 1.5 }; initLabUI(); saveStyleSettings(); }
         function closeDanmuStyle() { document.getElementById('danmuStyleModal').classList.add('hidden'); }
         function switchLabTarget(target) { labTarget = target; document.getElementById('textPreviewItem').classList.toggle('active', target === 'text'); document.getElementById('bgPreviewItem').classList.toggle('active', target === 'bg'); labColorPicker.setColor(target === 'text' ? document.getElementById('textPreview').style.backgroundColor : document.getElementById('danmuBgPreview').style.backgroundColor); }
-        async function captureFullScreenshot() { const kwd = document.getElementById('searchInput').value.trim(); const filtered = notes.filter(n => !n.isArchived && n.content.toLowerCase().includes(kwd.toLowerCase())); if(filtered.length === 0) return; const btn = event.target; btn.innerText = "生成中..."; const offScreenContainer = document.createElement('div'); offScreenContainer.style.width = '400px'; offScreenContainer.style.background = '#ffffff'; offScreenContainer.style.padding = '20px'; offScreenContainer.style.position = 'fixed'; offScreenContainer.style.left = '-10000px'; offScreenContainer.innerHTML = `<div style="font-weight: bold; font-size: 18px; margin-bottom: 20px;">记录列表</div>` + filtered.map(note => `<div style="border-bottom: 1px solid #f1f5f9; padding: 12px 0;"><div style="font-size: 14px; margin-bottom: 4px;">${note.content}</div><div style="font-size: 10px; color: #94a3b8; display: flex; justify-content: space-between;"><span>📍 ${note.addr}</span><span>${new Date(note.timestamp).toLocaleString()}</span></div></div>`).join(''); document.body.appendChild(offScreenContainer); try { const canvas = await html2canvas(offScreenContainer, { backgroundColor: "#ffffff", scale: 2 }); const link = document.createElement('a'); link.download = `记录_${Date.now()}.png`; link.href = canvas.toDataURL(); link.click(); } catch (err) {} finally { document.body.removeChild(offScreenContainer); btn.innerText = "截图"; } }
-        function downloadTXT() { const kwd = document.getElementById('searchInput').value.trim(); const filtered = notes.filter(n => !n.isArchived && n.content.toLowerCase().includes(kwd.toLowerCase())); const text = filtered.map(n => `[${new Date(n.timestamp).toLocaleString()}] @${n.addr}: ${n.content}`).join('\n'); if (!text) return; const blob = new Blob([text], { type: 'text/plain' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `记录_${Date.now()}.txt`; a.click(); }
-        function updateDateDisplay() { const now = new Date(); document.getElementById('dateDisplay').innerText = `${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')}`; }
         function initPickers() { bgColorPicker = new iro.ColorPicker("#bgPicker", { width: 180, color: localStorage.getItem('fave_bg_v12') || "#fcfaf2" }); bgColorPicker.on('color:change', (color) => { document.getElementById('bgInput').value = color.hexString; applyBgStyle(color.hexString); }); labColorPicker = new iro.ColorPicker("#labPicker", { width: 180, color: currentLaboratoryStyle.text }); labColorPicker.on('color:change', (color) => { if(labTarget === 'text') document.getElementById('textPreview').style.backgroundColor = color.hexString; else document.getElementById('danmuBgPreview').style.backgroundColor = color.hexString; }); }
 
-        // --- 4. 事件绑定 ---
         const main = document.getElementById('mainDisplay');
         let bgTimer;
-        const handleBgStart = (e) => { const isItem = e.target.closest('.danmu-item, .timeline-bubble, .archive-item-box, .pos-selector, .modal-container, .archive-list-item'); if(!isItem) bgTimer = setTimeout(() => document.getElementById('bgSettingsModal').classList.remove('hidden'), 800); };
+        const handleBgStart = (e) => { const isItem = e.target.closest('.danmu-item, .timeline-bubble, .archive-item-box, .pos-selector, .modal-container, .archive-list-item, #detailCard'); if(!isItem) { bgTimer = setTimeout(() => document.getElementById('bgSettingsModal').classList.remove('hidden'), 800); closeAndSaveDetail(); } };
 
         document.addEventListener('DOMContentLoaded', () => {
             initPickers(); initLabUI(); initBg(); render(); updateDateDisplay();
-            const sBtn = document.getElementById('submitBtn'), nInput = document.getElementById('noteInput');
+            const sBtn = document.getElementById('submitBtn'), nInput = document.getElementById('noteInput'), dEdit = document.getElementById('detailEditArea');
             sBtn.onclick = handleSend;
             document.getElementById('viewToggle').onclick = toggleView;
             document.getElementById('searchInput').oninput = render;
             nInput.onkeydown = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } };
+            dEdit.oninput = (e) => autoResizeEdit(e.target); 
             main.onmousedown = handleBgStart; main.ontouchstart = handleBgStart;
             main.onmouseup = () => clearTimeout(bgTimer); main.ontouchend = () => clearTimeout(bgTimer);
             let btnTimer;
