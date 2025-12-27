@@ -100,34 +100,17 @@
 
         /* 刷新确认小窗口样式 */
         #timeRefreshConfirm { position: fixed; inset: 0; z-index: 6000; background: rgba(0,0,0,0.2); display: none; align-items: center; justify-content: center; backdrop-filter: blur(1px); }
-        .confirm-box-mini { background: white; border-radius: 16px; padding: 16px; width: 200px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); border: 1px solid #f1f5f9; text-align: center; }
+        .confirm-box-mini { background: white; border-radius: 16px; padding: 20px 16px; width: 200px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); border: 1px solid #f1f5f9; text-align: center; }
 
-        /* 修改后的随机样式按钮定位 */
-.style-random-btn { 
-    position: absolute; 
-    right: 10px;    /* 距离右边 */
-    top: 8px;      /* 移到上方，避开下方可能出现的换行提醒或文字 */
-    width: 24px; 
-    height: 24px; 
-    border-radius: 50%;
-    display: flex; 
-    align-items: center; 
-    justify-content: center;
-    color: #cbd5e1; 
-    cursor: pointer; 
-    transition: all 0.2s;
-    background: transparent; 
-    z-index: 20;
-}
-        .style-random-btn:hover { background: rgba(0,0,0,0.03); color: #94a3b8; }
-        .style-random-btn:active { transform: translateY(-50%) rotate(180deg); color: #64748b; }
+        /* 修改：将随机按钮改为模板标签样式，取消绝对定位 */
+        .style-random-tag { border-style: dashed !important; background: #f8fafc !important; }
         
-        /* 输入框过渡 */
+        /* 输入框：移除原有右侧间距，彻底解决重合 */
         #noteInput {
-    padding-right: 36px !important; /* 确保右侧留出空间给刷新按钮 */
-    transition: background 0.3s, color 0.3s, border 0.3s; 
-    border-style: solid;
-}
+            padding-right: 12px !important; 
+            transition: background 0.3s, color 0.3s, border 0.3s; 
+            border-style: solid;
+        }
     </style>
 </head>
 <body id="bodyRoot">
@@ -261,10 +244,11 @@
 
     <footer id="footerBar" class="footer-area shadow-2xl">
         <div id="templateContainer" class="no-scrollbar">
-            <div class="template-tag" onclick="useTemplate('待办：记账')">待办：记账</div>
-            <div class="template-tag" onclick="useTemplate('今日：开心')">今日：开心</div>
-            <div class="template-tag" onclick="useTemplate('灵感：')">💡 灵感</div>
-            <div class="template-tag" onclick="useTemplate('阅读：')">📖 阅读</div>
+            <div class="template-tag" onclick="useTemplate('2026-')">2026计划</div>
+            <div class="template-tag" onclick="useTemplate('今日-')">⛱️今日</div>
+   
+            <div class="template-tag" onclick="useTemplate('阅读-')">📖 阅读</div>
+            <div class="template-tag style-random-tag" onclick="randomizeInputStyle()">🔄 随机样式</div>
         </div>
         
         <div class="flex items-center justify-between px-4 py-1 text-[10px] text-gray-400">
@@ -273,12 +257,7 @@
         </div>
         <div class="px-4 pb-2 pt-1 flex items-center gap-3">
             <div class="flex-1 relative h-10">
-                <textarea id="noteInput" rows="1" maxlength="100" placeholder="此刻的心情..." class="w-full h-full bg-gray-50 px-3 py-2 pr-9 rounded-xl border border-gray-100 text-sm resize-none outline-none"></textarea>
-                <button onclick="randomizeInputStyle()" class="style-random-btn" title="随机样式">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
-                </button>
+                <textarea id="noteInput" rows="1" maxlength="100" placeholder="记录瞬间..." class="w-full h-full bg-gray-50 px-3 py-2 rounded-xl border border-gray-100 text-sm resize-none outline-none"></textarea>
             </div>
             
             <button id="submitBtn" class="bg-slate-800 text-white w-10 h-10 rounded-full flex items-center justify-center shadow-lg active:scale-90 shrink-0">
@@ -288,8 +267,9 @@
     </footer>
 
     <script>
+        // ... 所有 JavaScript 逻辑保持不动 ...
         const defaultNotes = [
-            { id: 'def_1', content: '欢迎来到你的个人自留地 ⛱️', timestamp: Date.now(), addr: '光阴深处', isArchived: false, style: { text: '#ffffff', bg: '#1e293b', border: 2 }, x: 50, y: 100 },
+            { id: 'def_1', content: '欢迎来到你的个人自留地 ⛱️', timestamp: Date.now(), addr: '光阴深处', isArchived: false, style: { text: '#ffffff', bg: '#1e293b', border: 2 }, x: 30, y: 100 },
             { id: 'def_2', content: '长按发送按钮可以开启样式实验室 ✨', timestamp: Date.now() - 10000, addr: '新手村', isArchived: false, style: { text: '#3b82f6', bg: '#eff6ff', border: 1.5 }, x: 80, y: 200 },
             { id: 'def_3', content: '拖动我到左下角可以归档哦 📦', timestamp: Date.now() - 20000, addr: '小贴士', isArchived: false, style: { text: '#ec4899', bg: '#fdf2f8', border: 1.5 }, x: 40, y: 300 }
         ];
@@ -441,7 +421,6 @@
         function closeBgSettings() { document.getElementById('bgSettingsModal').classList.add('hidden'); }
         function applyBgStyle(val) { const body = document.getElementById('bodyRoot'); if (val.startsWith('http')) { body.style.backgroundImage = `url('${val}')`; body.style.backgroundColor = 'transparent'; } else { body.style.backgroundImage = 'none'; body.style.backgroundColor = val; } }
 
-        // --- 核心改动：样式同步逻辑 ---
         function applyStyleToInput(s) {
             const input = document.getElementById('noteInput');
             input.style.backgroundColor = s.bg;
@@ -468,7 +447,7 @@
             s.bg = document.getElementById('danmuBgPreview').style.backgroundColor;
             s.border = parseFloat(document.getElementById('styleBorderSize').value);
             document.getElementById('borderValDisplay').innerText = s.border + 'px';
-            applyStyleToInput(s); // 在实验室调节时实时应用到文本框
+            applyStyleToInput(s); 
         }
 
         function initLabUI() { 
@@ -509,13 +488,13 @@
                     document.getElementById('danmuBgPreview').style.backgroundColor = color.hexString;
                     currentLaboratoryStyle.bg = color.hexString;
                 }
-                updateLabStylePreview(); // 颜色变化时同步预览
+                updateLabStylePreview(); 
             }); 
         }
 
         const main = document.getElementById('mainDisplay'); let bgTimer;
         const handleBgStart = (e) => { 
-            const isItem = e.target.closest('.danmu-item, .timeline-bubble, .archive-item-box, .pos-selector, .modal-container, .archive-list-item, #detailCard, .template-tag, #timeRefreshConfirm, .style-random-btn'); 
+            const isItem = e.target.closest('.danmu-item, .timeline-bubble, .archive-item-box, .pos-selector, .modal-container, .archive-list-item, #detailCard, .template-tag, #timeRefreshConfirm'); 
             if(!isItem) { bgTimer = setTimeout(() => document.getElementById('bgSettingsModal').classList.remove('hidden'), 800); closeAndSaveDetail(); document.getElementById('templateContainer').style.display = 'none'; } 
         };
 
