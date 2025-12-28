@@ -15,13 +15,11 @@
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             overflow: hidden; height: 100dvh; display: flex; flex-direction: column;
             position: fixed; width: 100%; transition: background 0.5s ease;
-            /* 关键修改：禁止全局长按弹出菜单 */
             -webkit-touch-callout: none; 
             -webkit-user-select: none; 
             user-select: none;
         }
 
-        /* 允许输入框可以选择文字和调起菜单，确保正常使用 */
         input, textarea {
             -webkit-touch-callout: default !important;
             -webkit-user-select: text !important;
@@ -37,7 +35,6 @@
             z-index: 10;
             transform: rotate(0deg);
             transition: left 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), top 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            /* 弹幕禁止长按 */
             -webkit-touch-callout: none;
         }
         
@@ -102,7 +99,7 @@
         .no-scrollbar::-webkit-scrollbar { display: none; }
 
         #templateContainer { display: none; padding: 8px 16px 0; gap: 8px; overflow-x: auto; white-space: nowrap; }
-        .template-tag { display: inline-block; padding: 4px 12px; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 11px; color: #64748b; cursor: pointer; transition: all 0.2s; }
+        .template-tag { display: inline-block; padding: 4px 12px; background: #fff; border: 1px solid #e2e2f0; border-radius: 12px; font-size: 11px; color: #64748b; cursor: pointer; transition: all 0.2s; }
         .template-tag:active { transform: scale(0.95); background: #f8fafc; }
 
         .time-refresh-btn { background: #f8fafc; border: 1px solid #f1f5f9; padding: 4px 10px; font-family: monospace; font-size: 10px; color: #94a3b8; border-radius: 6px; transition: all 0.2s; white-space: nowrap; }
@@ -118,6 +115,8 @@
             transition: background 0.3s, color 0.3s, border 0.3s; 
             border-style: solid;
         }
+
+        #questionArea { display: none; cursor: pointer; }
     </style>
 </head>
 <body id="bodyRoot">
@@ -148,12 +147,13 @@
 
     <div id="detailCard" class="bg-white rounded-2xl border shadow-2xl p-4 w-64 card-enter">
         <textarea id="detailEditArea" class="w-full text-xs text-slate-700 leading-relaxed break-words font-medium mb-3 bg-slate-50 p-2 rounded-lg border-none outline-none focus:ring-1 focus:ring-blue-100 resize-none overflow-hidden" placeholder="修改内容..."></textarea>
-        <div class="flex items-center justify-end gap-3 border-t border-gray-100 pt-3 text-[10px] text-slate-400">
-            <span id="detailLoc" class="font-bold truncate max-w-[80px] mr-auto">📍 地点</span>
-            <button id="timeRefreshBtn" class="time-refresh-btn" onclick="showRefreshConfirm()">🔄 2024-01-01 00:00</button>
+        <div class="flex items-center gap-2 text-[10px] text-slate-400 mb-3 overflow-hidden">
+            <span class="shrink-0">📍</span>
+            <span id="detailLoc" class="font-bold truncate flex-1">地点</span>
         </div>
-        <div class="mt-3 flex justify-end">
-            <button onclick="closeAndSaveDetail()" class="text-[10px] text-blue-500 font-bold px-4 py-1.5 bg-blue-50 rounded-lg active:scale-95">完成</button>
+        <div class="flex items-center justify-between gap-2 border-t border-gray-100 pt-3">
+            <button id="timeRefreshBtn" class="time-refresh-btn flex-1" onclick="showRefreshConfirm()">🔄 2024-01-01 00:00</button>
+            <button onclick="closeAndSaveDetail()" class="text-[10px] text-blue-500 font-bold px-4 py-2 bg-blue-50 rounded-lg active:scale-95">完成</button>
         </div>
     </div>
 
@@ -250,6 +250,18 @@
     </div>
 
     <footer id="footerBar" class="footer-area shadow-2xl">
+        <div id="questionArea" class="px-5 pt-3 pb-1 flex items-center justify-between group">
+            <div class="flex items-center gap-2 overflow-hidden flex-1">
+                <span class="text-[10px] bg-slate-100 text-slate-400 px-1.5 py-0.5 rounded shadow-sm shrink-0 font-bold">每日一问</span>
+                <span id="randomQuestion" class="text-[12px] text-slate-500 font-medium truncate italic leading-relaxed transition-opacity duration-300">加载提问中...</span>
+            </div>
+            <button onclick="refreshQuestion(); event.stopPropagation();" class="text-slate-300 hover:text-blue-400 active:rotate-180 transition-all duration-500 p-1 shrink-0 ml-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+            </button>
+        </div>
+
         <div id="templateContainer" class="no-scrollbar">
             <div class="template-tag" onclick="useTemplate('2026-')">⏳年度计划</div>
             <div class="template-tag" onclick="useTemplate('今日-')">⛱️每日</div>
@@ -258,8 +270,11 @@
         </div>
         
         <div class="flex items-center justify-between px-4 py-1 text-[10px] text-gray-400">
-            <div class="flex items-center gap-1">📍 <input type="text" id="locInput" value="某时某地的我" class="bg-transparent border-none outline-none font-bold text-slate-500" style="width:100px;"></div>
-            <div id="dateDisplay" class="font-mono"></div>
+            <div class="flex items-center gap-1 flex-1 overflow-hidden mr-4">
+                <span class="shrink-0">📍</span> 
+                <input type="text" id="locInput" value="某时某地的我" class="bg-transparent border-none outline-none font-bold text-slate-500 flex-1 min-w-0">
+            </div>
+            <div id="dateDisplay" class="font-mono shrink-0"></div>
         </div>
         <div class="px-4 pb-2 pt-1 flex items-center gap-3">
             <div class="flex-1 relative h-10">
@@ -273,11 +288,23 @@
     </footer>
 
     <script>
+        const questionData = [
+            "今年最让你感到自豪的一个瞬间是什么？",
+            "如果现在可以去任何地方，你想去哪？",
+            "最近一次让你开怀大笑的事情是什么？",
+            "你最近学到的一个新技能或者冷知识是？",
+            "此时此刻，你周围最吸引你的声音是什么？",
+            "你对明天的自己有什么期待？",
+            "形容一下你现在的咖啡/茶/水的味道？",
+            "最近有没有哪一首歌一直在你脑海里回响？",
+            "你上一次感到彻底放松是什么时候？",
+            "如果今天能重来，你会改变哪个细节？"
+        ];
+
         const defaultNotes = [
             { id: 'def_1', content: '欢迎来到你的个人自留地 ⛱️', timestamp: Date.now(), addr: '光阴深处', isArchived: false, style: { text: '#ffffff', bg: '#1e293b', border: 2 }, x: 30, y: 100 },
             { id: 'def_2', content: '长按发送按钮可以开启样式实验室 ✨', timestamp: Date.now() - 10000, addr: '新手村', isArchived: false, style: { text: '#3b82f6', bg: '#eff6ff', border: 1.5 }, x: 80, y: 200 },
             { id: 'def_3', content: '拖动我到左下角可以归档哦 📦', timestamp: Date.now() - 20000, addr: '小贴士', isArchived: false, style: { text: '#ec4899', bg: '#fdf2f8', border: 1.5 }, x: 40, y: 300 }
-
         ];
 
         let localData = JSON.parse(localStorage.getItem('fave_notes_v12')) || [];
@@ -290,6 +317,16 @@
         let activeNoteId = null; 
         let currentActiveTimestamp = null;
         let isCurrentlyRandom = false; 
+
+        function refreshQuestion() {
+            const qEl = document.getElementById('randomQuestion');
+            qEl.style.opacity = 0; 
+            setTimeout(() => {
+                const randomIndex = Math.floor(Math.random() * questionData.length);
+                qEl.innerText = questionData[randomIndex];
+                qEl.style.opacity = 1;
+            }, 300);
+        }
 
         function showRefreshConfirm() { document.getElementById('timeRefreshConfirm').style.display = 'flex'; }
         function hideRefreshConfirm() { document.getElementById('timeRefreshConfirm').style.display = 'none'; }
@@ -357,10 +394,10 @@
             const card = document.getElementById('detailCard'); const editArea = document.getElementById('detailEditArea'); const timeBtn = document.getElementById('timeRefreshBtn');
             activeNoteId = note.id; currentActiveTimestamp = note.timestamp; 
             const d = new Date(note.timestamp); const dateStr = d.toLocaleDateString().replace(/\//g, '-'); const timeStr = d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', hour12: false});
-            document.getElementById('detailLoc').innerText = `📍 ${note.addr}`; 
+            document.getElementById('detailLoc').innerText = `${note.addr}`; 
             timeBtn.innerText = `🔄 ${dateStr} ${timeStr}`; 
             editArea.value = note.content; card.style.display = 'block'; autoResizeEdit(editArea); 
-            card.style.left = Math.min(Math.max(10, x - 128), window.innerWidth - 270) + 'px'; card.style.top = (y < 200 ? y + 20 : y - 180) + 'px';
+            card.style.left = Math.min(Math.max(10, x - 128), window.innerWidth - 270) + 'px'; card.style.top = (y < 200 ? y + 20 : y - 220) + 'px';
         }
 
         function autoResizeEdit(el) { el.style.height = 'auto'; el.style.height = (el.scrollHeight) + 'px'; }
@@ -528,23 +565,40 @@
 
         const main = document.getElementById('mainDisplay'); let bgTimer;
         const handleBgStart = (e) => { 
-            const isItem = e.target.closest('.danmu-item, .timeline-bubble, .archive-item-box, .pos-selector, .modal-container, .archive-list-item, #detailCard, .template-tag, #timeRefreshConfirm'); 
+            const isItem = e.target.closest('.danmu-item, .timeline-bubble, .archive-item-box, .pos-selector, .modal-container, .archive-list-item, #detailCard, .template-tag, #timeRefreshConfirm, #questionArea'); 
             if(!isItem) { 
                 bgTimer = setTimeout(() => document.getElementById('bgSettingsModal').classList.remove('hidden'), 800); 
                 closeAndSaveDetail(); 
                 document.getElementById('templateContainer').style.display = 'none'; 
+                document.getElementById('questionArea').style.display = 'none'; 
             } 
         };
 
         document.addEventListener('DOMContentLoaded', () => {
             initPickers(); initLabUI(); initBg(); render(); updateDateDisplay();
+            refreshQuestion(); 
+
             const sBtn = document.getElementById('submitBtn'), nInput = document.getElementById('noteInput'), dEdit = document.getElementById('detailEditArea');
             const tContainer = document.getElementById('templateContainer');
+            const qContainer = document.getElementById('questionArea');
+            const locInput = document.getElementById('locInput');
+
+            qContainer.onclick = () => {
+                const question = document.getElementById('randomQuestion').innerText;
+                if(question && question !== "加载提问中...") {
+                    locInput.value = question;
+                }
+            };
+
             sBtn.onclick = handleSend;
             document.getElementById('viewToggle').onclick = toggleView;
             document.getElementById('searchInput').oninput = render;
 
-            nInput.onfocus = () => { tContainer.style.display = 'flex'; };
+            nInput.onfocus = () => { 
+                tContainer.style.display = 'flex'; 
+                qContainer.style.display = 'flex';
+            };
+
             nInput.onkeydown = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } };
             dEdit.oninput = (e) => autoResizeEdit(e.target); 
             main.oncontextmenu = (e) => e.preventDefault(); main.onmousedown = handleBgStart; main.ontouchstart = handleBgStart;
