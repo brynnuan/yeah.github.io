@@ -263,9 +263,9 @@
         </div>
 
         <div id="templateContainer" class="no-scrollbar">
-            <div class="template-tag" onclick="useTemplate('2026-')">⏳年度计划</div>
-            <div class="template-tag" onclick="useTemplate('今日-')">⛱️每日</div>
-            <div class="template-tag" onclick="useTemplate('此刻-')">📖 瞬间</div>
+            <div class="template-tag" onclick="useTemplate('2026')">⏳年度计划</div>
+            <div class="template-tag" onclick="useTemplate('今日')">⛱️每日</div>
+            <div class="template-tag" onclick="useTemplate('此刻')">📖 瞬间</div>
             <div class="template-tag style-random-tag" onclick="randomizeInputStyle()">🔄 随机样式</div>
         </div>
         
@@ -288,7 +288,7 @@
     </footer>
 
     <script>
-        // --- 核心逻辑完全保留 ---
+        // --- 核心逻辑保持 ---
         let questionData = []; 
         let shuffledQuestions = [];
 
@@ -299,7 +299,6 @@
                 questionData = await response.json();
                 refreshQuestion(); 
             } catch (error) {
-                console.error('无法加载 question.json，将使用备用问题:', error);
                 questionData = ["今天心情如何？", "有什么想记录的吗？"];
                 refreshQuestion();
             }
@@ -333,7 +332,6 @@
         let viewMode = 'wall';
         let linePos = 'center';
         
-        // --- 样式存储逻辑修正 ---
         let currentLaboratoryStyle = JSON.parse(localStorage.getItem('fave_lab_style_v12')) || { text: '#334155', bg: '#ffffff', border: 1.5 };
         let labTarget = 'text';
         let bgColorPicker, labColorPicker;
@@ -358,7 +356,13 @@
             hideRefreshConfirm();
         }
 
-        function useTemplate(text) { const input = document.getElementById('noteInput'); input.value = text; input.focus(); }
+        // --- 修改部分：点击模板传送至地址框 ---
+        function useTemplate(text) { 
+            const locInput = document.getElementById('locInput'); 
+            locInput.value = text; 
+            locInput.focus(); 
+        }
+
         function isInvalidPosition(x, y) { const mainRect = document.getElementById('mainDisplay').getBoundingClientRect(); return (y < mainRect.top + 15 || y > mainRect.bottom - 15 || x < mainRect.left + 15 || x > mainRect.right - 15); }
         function getRandomPos() { const margin = 60; return { x: margin + Math.random() * (window.innerWidth - margin * 2 - 100), y: margin + 100 + Math.random() * (window.innerHeight - margin * 2 - 250) }; }
 
@@ -491,23 +495,18 @@
             saveAndRender(); 
             input.value = ''; 
             locInput.value = "某时某地的我"; 
-
-            // --- 修改：无论之前是否随机/自定义，发送后均恢复默认 ---
             resetInputStyle(); 
             input.placeholder = "开始记录...";
             input.focus();
         }
 
-        // --- 核心重置函数 ---
         function resetInputStyle() {
             const input = document.getElementById('noteInput'); 
             input.style.background = ""; 
             input.style.color = ""; 
             input.style.border = "";
             isCurrentlyRandom = false; 
-            // 内部存储的样式也回归系统默认，确保下次新纪录不是旧颜色
             currentLaboratoryStyle = { text: '#334155', bg: '#ffffff', border: 1.5 };
-            // 更新预览界面同步
             initLabUI();
         }
         
@@ -576,7 +575,6 @@
             s.border = parseFloat(document.getElementById('styleBorderSize').value);
             document.getElementById('borderValDisplay').innerText = s.border + 'px';
             applyStyleToInput(s); 
-            // 如果用户手动在实验室调整了，默认认为不再是随机状态，但发送后依然重置
         }
 
         function initLabUI() { 
@@ -670,4 +668,3 @@
     </script>
 </body>
 </html>
-
